@@ -5,6 +5,7 @@ import { Info, MapPinCheck, MapPinPen, Search, Undo2 } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
 import { diaEHora } from '@/pedidos/formato'
 import { acharPontoDoEndereco, marcarPontoNoMapa } from './api'
+import { AtribuicaoBusca } from './atribuicaoMapa'
 import { FABRICA } from './rotaRuas'
 import { SeloEnderecoAlterado } from './SeloEnderecoAlterado'
 import {
@@ -515,6 +516,7 @@ export function JanelaEnderecoPedido({
                   Achar no mapa
                 </Botao>
               </div>
+              <AtribuicaoBusca />
               {busca === 'nao_achou' && (
                 <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
                   O mapa não achou esse endereço. Toque no mapa e arraste o pino até a casa do
@@ -523,8 +525,8 @@ export function JanelaEnderecoPedido({
               )}
               {busca === 'falhou' && (
                 <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
-                  Não consegui consultar o mapa agora. Marque o lugar tocando no mapa e arrastando o
-                  pino.
+                  A busca de endereço não respondeu. Marque o ponto no mapa (toque e arraste o pino)
+                  ou tente de novo.
                 </p>
               )}
               <div className="h-56 overflow-hidden rounded-dm-lg border border-borda sm:h-64">

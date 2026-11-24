@@ -10,6 +10,7 @@ import {
   Tooltip,
   useMap,
 } from 'react-leaflet'
+import { ATRIBUICAO_MAPA } from './atribuicaoMapa'
 import { latLngBounds } from 'leaflet'
 import type { Map as LeafletMap } from 'leaflet'
 import { List, MapPinPen, Maximize2, Minimize2, Pencil, X } from 'lucide-react'
@@ -332,7 +333,7 @@ export const MapaProgramacao = memo(function MapaProgramacao({
       style={{ height: '100%', width: '100%' }}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution={ATRIBUICAO_MAPA}
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <Enquadrar pontos={pontos} expandido={expandido} />

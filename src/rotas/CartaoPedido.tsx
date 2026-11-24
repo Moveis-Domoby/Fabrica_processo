@@ -1,10 +1,11 @@
 import { memo, type MouseEvent, type ReactNode } from 'react'
-import { MapPin, MapPinCheck, MapPinOff, MapPinPen, Package } from 'lucide-react'
+import { MapPin, MapPinCheck, MapPinOff, MapPinPen, Package, RotateCw } from 'lucide-react'
 import { AVISO_PONTO_APROXIMADO, dataLegivel, enderecoLegivel } from './api'
 import type { EstadoPedido, ItemPedido, PontoAproximado } from './api'
 import type { SeloEndereco } from './enderecoDoPedido'
 import { SeloEnderecoAlterado } from './SeloEnderecoAlterado'
 import { SeloEstado } from './SeloEstado'
+import { AVISO_BUSCA_SEM_RESPOSTA, tentarDeNovo, useEstadoDaBusca } from './estadoDaBusca'
 
 export interface DadosCartaoPedido {
   numero: number
@@ -19,6 +20,8 @@ export interface DadosCartaoPedido {
   data_prevista: string | null
   geo_chave: string | null
   geo_resolvido: boolean | null
+  /** SESSAO-56: o endereço que vai à busca — para o "Tentar de novo" do cartão. */
+  endereco_geocodificavel?: string | null
   /** SESSAO-45: o ponto foi marcado à mão pela logística. */
   geo_manual?: boolean
   /** SESSAO-45 · ajuste: a rua não foi achada — o ponto veio do CEP, do bairro ou da cidade. */
@@ -73,6 +76,18 @@ export const CartaoPedido = memo(function CartaoPedido({
       }
     : undefined
   const itens = pedido.itens ?? []
+  // SESSAO-56: a busca de endereço não respondeu — o cartão avisa em vez de "procurar" para sempre
+  const busca = useEstadoDaBusca()
+  const semPonto = pedido.geo_resolvido === null && !!pedido.geo_chave
+  const tentando = !!pedido.geo_chave && busca.tentando.has(pedido.geo_chave)
+  const tentar =
+    pedido.geo_chave && pedido.endereco_geocodificavel
+      ? (e: MouseEvent<HTMLButtonElement>) => {
+          e.preventDefault()
+          e.stopPropagation()
+          void tentarDeNovo({ chave: pedido.geo_chave!, endereco: pedido.endereco_geocodificavel! })
+        }
+      : undefined
   // ajuste do dono (05/11): a rua não achada vira o ponto da cidade, com o aviso para ajustar o pino
   const aproximado = pedido.geo_manual ? null : (pedido.geo_aproximado ?? null)
   return (
@@ -183,8 +198,40 @@ export const CartaoPedido = memo(function CartaoPedido({
           )}
         </span>
       )}
-      {pedido.geo_resolvido === null && pedido.geo_chave && (
+      {semPonto && !busca.semResposta && (
         <span className="text-xs text-texto-fraco">procurando no mapa…</span>
+      )}
+      {semPonto && busca.semResposta && (
+        <span
+          role="status"
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-dm border border-atencao-borda bg-atencao-fundo px-2 py-1 text-xs font-medium text-atencao-texto"
+        >
+          <span className="inline-flex items-start gap-1">
+            <MapPinOff aria-hidden className="mt-px size-3.5 shrink-0" />
+            {AVISO_BUSCA_SEM_RESPOSTA}
+          </span>
+          {marcar && (
+            <button
+              type="button"
+              onClick={marcar}
+              className="inline-flex min-h-toque-md items-center gap-1 rounded-dm border border-atencao-borda bg-superficie px-2.5 font-semibold text-atencao-texto hover:brightness-95"
+            >
+              <MapPin aria-hidden className="size-3.5" />
+              Marcar no mapa
+            </button>
+          )}
+          {tentar && (
+            <button
+              type="button"
+              onClick={tentar}
+              disabled={tentando}
+              className="inline-flex min-h-toque-md items-center gap-1 rounded-dm border border-atencao-borda bg-superficie px-2.5 font-semibold text-atencao-texto hover:brightness-95 disabled:opacity-60"
+            >
+              <RotateCw aria-hidden className={tentando ? 'size-3.5 animate-spin' : 'size-3.5'} />
+              {tentando ? 'Tentando…' : 'Tentar de novo'}
+            </button>
+          )}
+        </span>
       )}
       {!pedido.geo_chave && (
         <span className="inline-flex items-center gap-1 text-xs text-atencao-texto">

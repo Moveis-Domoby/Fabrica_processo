@@ -409,7 +409,7 @@ export interface PedidoProgramacao extends Prontidao {
   programacao_data: string | null
   caminhao_id: number | null
   caminhao_nome: string | null
-  /** D-109: a posição salva à mão na rota do caminhão; null = vale a sugestão. */
+  /** D-109: a posição salva na rota do caminhão; null = rota antiga, ainda sem ordem salva (SESSAO-56). */
   ordem: number | null
   contagem_total: number
 }
@@ -503,12 +503,18 @@ export async function programarEntrega(parametros: {
   data: string
   caminhaoId: number
   rota?: number | null
+  /**
+   * SESSAO-56 (B2): reprogramando, a ordem que a tela mostrava para os que
+   * FICAM na rota de origem — gravada no mesmo gesto (ela não se rearruma).
+   */
+  ordemDaOrigem?: { t: 'p' | 'a'; id: number }[] | null
 }): Promise<void> {
   const { error } = await supabase.rpc('plt_fn_programar_entrega', {
     p_card_id: parametros.cardId,
     p_data: parametros.data,
     p_caminhao_id: parametros.caminhaoId,
     p_rota: parametros.rota ?? null,
+    p_ordem_origem: parametros.ordemDaOrigem ?? null,
   })
   if (error) throw new Error(`Não deu para programar: ${error.message}`)
 }
@@ -604,8 +610,19 @@ export async function listarProgramadas(parametros: {
   return (data ?? []) as PedidoProgramado[]
 }
 
-export async function desprogramarEntrega(cardId: number): Promise<void> {
-  const { error } = await supabase.rpc('plt_fn_desprogramar_entrega', { p_card_id: cardId })
+/**
+ * Tira o pedido da programação. SESSAO-56 (B2 — pedido do dono): `ordemQueFica`
+ * = a ordem que a tela mostrava para os OUTROS itens da rota; o banco a grava
+ * no mesmo gesto (uma chamada) — só o pedido sai, ninguém muda de lugar.
+ */
+export async function desprogramarEntrega(
+  cardId: number,
+  ordemQueFica?: { t: 'p' | 'a'; id: number }[] | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_desprogramar_entrega', {
+    p_card_id: cardId,
+    p_ordem_fica: ordemQueFica ?? null,
+  })
   if (error) throw new Error(`Não deu para tirar da programação: ${error.message}`)
 }
 
@@ -617,17 +634,29 @@ export interface ResultadoGeocodificacao {
   latitude: number | null
   longitude: number | null
   resolvido: boolean
+  /**
+   * SESSAO-56: nenhum buscador respondeu (recusa, cota, fora do ar) — nada foi
+   * gravado e NÃO é "não achei": a tela avisa e oferece tentar de novo.
+   */
+  tentar_depois?: boolean
+}
+
+/** A resposta da busca: os resultados e, do servidor novo, desde quando a busca está fora. */
+export interface RespostaGeocodificacao {
+  resultados: ResultadoGeocodificacao[]
+  /** ISO da queda; null = respondendo; undefined = o servidor de antes da SESSAO-56 (não diz). */
+  foraDesde?: string | null
 }
 
 /**
- * Geocodificação pela Edge Function `geocodificar` (Nominatim com ritmo e
- * identificação — o navegador não consegue garantir nenhum dos dois). Até 5
- * por chamada (D-112: 3 tentativas por endereço); o resultado já fica no cache.
+ * Geocodificação pela Edge Function `geocodificar` (↪️ SESSAO-56: a Geoapify,
+ * com a chave guardada no servidor; o Photon de reserva). Até 5 por chamada; o
+ * resultado já fica no cache.
  */
 export async function geocodificar(
   itens: { chave: string; endereco: string }[],
-): Promise<ResultadoGeocodificacao[]> {
-  if (itens.length === 0) return []
+): Promise<RespostaGeocodificacao> {
+  if (itens.length === 0) return { resultados: [] }
   const { data, error } = await supabase.functions.invoke('geocodificar', {
     body: { itens: itens.slice(0, GEOCODIFICAR_POR_CHAMADA) },
   })
@@ -643,12 +672,17 @@ export async function geocodificar(
     }
     throw new Error(mensagem)
   }
-  return (data as { resultados?: ResultadoGeocodificacao[] })?.resultados ?? []
+  const corpo = data as {
+    resultados?: ResultadoGeocodificacao[]
+    busca?: { fora_desde?: string | null }
+  } | null
+  return { resultados: corpo?.resultados ?? [], foraDesde: corpo?.busca?.fora_desde }
 }
 
 /**
  * "Salvar ordem" (D-109): a ordem das paradas de UMA rota de um caminhão num
- * dia (D-128). Lista vazia = volta à sugestão automática. O banco recusa se a
+ * dia (D-128). ↪️ SESSAO-56: a tela manda SEMPRE a ordem que mostra (o banco
+ * ainda aceita a lista vazia = sem ordem, do site de antes). O banco recusa se a
  * rota mudou noutra tela, se alguém já foi entregue ou se quem salva não é da
  * logística.
  */
@@ -1289,9 +1323,18 @@ export async function concluirParadaAvulsa(
   if (error) throw new Error(error.message)
 }
 
-/** Tira a parada da rota (nada se apaga — fica registrada como removida). */
-export async function removerParadaAvulsa(id: number): Promise<void> {
-  const { error } = await supabase.rpc('plt_fn_parada_avulsa_remover', { p_id: id })
+/**
+ * Tira a parada da rota (nada se apaga — fica registrada como removida).
+ * SESSAO-56 (B2): com a ordem que a tela mostrava para os que ficam.
+ */
+export async function removerParadaAvulsa(
+  id: number,
+  ordemQueFica?: ItemDaOrdem[] | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('plt_fn_parada_avulsa_remover', {
+    p_id: id,
+    p_ordem_fica: ordemQueFica ?? null,
+  })
   if (error) throw new Error(error.message)
 }
 
@@ -1365,14 +1408,32 @@ export async function chaveGeoDaParada(endereco: string): Promise<string> {
   return `avulsa:${h1.toString(16).padStart(8, '0')}${h2.toString(16).padStart(8, '0')}`
 }
 
-/** O ponto de um endereço digitado (pela mesma função `geocodificar` — e o mesmo cache). */
+/**
+ * SESSAO-56: a busca não RESPONDEU (os buscadores recusaram ou estão fora) —
+ * diferente de "não achei": as janelas mostram o aviso de tentar de novo.
+ */
+export class BuscaSemResposta extends Error {
+  constructor() {
+    super('A busca de endereço não respondeu. Marque o ponto no mapa ou tente de novo.')
+    this.name = 'BuscaSemResposta'
+  }
+}
+
+/**
+ * O ponto de um endereço digitado (pela mesma função `geocodificar` — e o
+ * mesmo cache). `null` = o mapa não achou; busca sem resposta = `BuscaSemResposta`
+ * (↪️ SESSAO-56: antes os dois casos voltavam `null`).
+ */
 export async function acharPontoDoEndereco(
   endereco: string,
 ): Promise<{ latitude: number; longitude: number } | null> {
   const texto = endereco.trim()
   if (texto.length < 3) return null
   const chave = await chaveGeoDaParada(texto)
-  const [resultado] = await geocodificar([{ chave, endereco: texto }])
+  const {
+    resultados: [resultado],
+  } = await geocodificar([{ chave, endereco: texto }])
+  if (resultado?.tentar_depois) throw new BuscaSemResposta()
   if (!resultado?.resolvido || resultado.latitude === null || resultado.longitude === null)
     return null
   return { latitude: resultado.latitude, longitude: resultado.longitude }

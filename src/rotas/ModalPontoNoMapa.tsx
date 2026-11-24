@@ -4,6 +4,7 @@ import { MapPinCheck, RotateCcw, Search } from 'lucide-react'
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
 import { AVISO_PONTO_APROXIMADO, acharPontoDoEndereco, enderecoLegivel, marcarPontoNoMapa } from './api'
 import type { PontoAproximado } from './api'
+import { AtribuicaoBusca } from './atribuicaoMapa'
 import { FABRICA } from './rotaRuas'
 
 const MapaPino = lazy(() => import('./MapaPinoParada'))
@@ -180,6 +181,7 @@ export function ModalPontoNoMapa({
             Achar no mapa
           </Botao>
         </div>
+        <AtribuicaoBusca />
 
         {busca === 'nao_achou' && (
           <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
@@ -189,7 +191,8 @@ export function ModalPontoNoMapa({
         )}
         {busca === 'falhou' && (
           <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
-            Não consegui consultar o mapa agora. Marque o lugar tocando no mapa e arrastando o pino.
+            A busca de endereço não respondeu. Marque o ponto no mapa (toque e arraste o pino) ou
+            tente de novo.
           </p>
         )}
 

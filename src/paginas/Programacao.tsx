@@ -8,6 +8,7 @@ import { useAcessoLogistica } from '@/logistica/acesso'
 import { AbaCalendario } from '@/rotas/AbaCalendario'
 import { AbaJaProgramadas } from '@/rotas/AbaJaProgramadas'
 import { AbaProgramar } from '@/rotas/AbaProgramar'
+import { FaixaBuscaFora } from '@/rotas/FaixaBuscaFora'
 
 type AbaProgramacao = 'programar' | 'programadas' | 'calendario'
 
@@ -101,6 +102,9 @@ export function Programacao() {
           idBase="programacao"
         />
       </CabecalhoDaTela>
+
+      {/* SESSAO-56: a busca de endereço fora do ar não fica mais em silêncio */}
+      <FaixaBuscaFora />
 
       <div role="tabpanel" id="programacao-painel" aria-labelledby={`programacao-aba-${aba}`}>
         {aba === 'programar' ? (

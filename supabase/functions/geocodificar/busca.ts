@@ -69,7 +69,7 @@ export interface Candidato {
   cidades: string[]
   estado: string | null
   cep: string | null
-  fonte: 'nominatim' | 'photon'
+  fonte: 'nominatim' | 'photon' | 'geoapify'
 }
 
 export interface Escolha {
@@ -610,6 +610,115 @@ export function candidatosNominatim(corpo: unknown): Candidato[] {
       estado: a.state ?? null,
       cep: a.postcode ?? null,
       fonte: 'nominatim',
+    })
+  }
+  return lista
+}
+
+// ---------------------------------------------------------------------------
+// A Geoapify (SESSAO-56 — a escolha do dono, 23/11/2026): o buscador principal.
+// Os buscadores gratuitos sem chave (Nominatim desde 03/10, Photon desde 19/11)
+// passaram a recusar o servidor; a Geoapify tem chave própria da Domoby e os
+// dados são os do mapa aberto — a pontuação acima vale igual. Aqui só as
+// consultas e a leitura da resposta (format=json); quem escolhe continua
+// sendo `escolher`/`escolherPerto` — nunca "o 1º resultado".
+// ---------------------------------------------------------------------------
+
+/** Os parâmetros de uma consulta à Geoapify (sem a chave — quem põe é a função). */
+export type ConsultaGeoapify = Record<string, string>
+
+/** A fábrica, no formato da Geoapify (longitude primeiro): os resultados perto dela vêm antes. */
+const PERTO_DA_FABRICA = 'proximity:-35.2,-5.8'
+
+/** Só o Brasil; no RN (onde a fábrica entrega), só dentro do estado. */
+function filtroGeoapify(uf: string | null): string {
+  const caixa = caixaDoEstado(uf)
+  return caixa ? `rect:${caixa}|countrycode:br` : 'countrycode:br'
+}
+
+/**
+ * As consultas da RUA, da mais certeira à mais solta: a busca ESTRUTURADA
+ * (número, rua, CEP, cidade, estado) e, se ela não bastar, o endereço em texto
+ * com o bairro (o CEP errado no cadastro não esconde a rua). O endereço
+ * digitado à mão (parada avulsa, busca da janela do mapa) vai em texto, só no RN.
+ */
+export function consultasGeoapify(e: EnderecoPartido): ConsultaGeoapify[] {
+  if (e.livre || !e.rua) {
+    return [{ text: e.texto, filter: filtroGeoapify('RN'), bias: PERTO_DA_FABRICA, limit: '5' }]
+  }
+  const rua = ruaPorExtenso(e.rua)
+  const numero = e.numero && /\d/.test(e.numero) ? e.numero : null
+  const estado = nomeDoEstado(e.uf)
+  const comum = { filter: filtroGeoapify(e.uf), bias: PERTO_DA_FABRICA, limit: '8' }
+  const estruturada: ConsultaGeoapify = { street: rua, ...comum }
+  if (numero) estruturada.housenumber = numero
+  // o CEP geral da cidade (…000) não diz a rua — só atrapalharia
+  if (e.cep && !e.cep.endsWith('000')) estruturada.postcode = `${e.cep.slice(0, 5)}-${e.cep.slice(5)}`
+  if (e.cidade) estruturada.city = e.cidade
+  if (estado) estruturada.state = estado
+  estruturada.country = 'Brasil'
+  const texto = [`${rua}${numero ? ` ${numero}` : ''}`, e.bairro, e.cidade, e.uf].filter(Boolean).join(', ')
+  return [estruturada, { text: texto, ...comum }]
+}
+
+/** O centro do bairro ("Rocas, Natal, Rio Grande do Norte") — só ÂNCORA para achar a rua. */
+export function consultaGeoapifyBairro(e: EnderecoPartido): ConsultaGeoapify | null {
+  if (e.livre || !e.bairro || !e.cidade) return null
+  const texto = [e.bairro, e.cidade, nomeDoEstado(e.uf) ?? e.uf].filter(Boolean).join(', ')
+  return { text: texto, filter: filtroGeoapify(e.uf), bias: PERTO_DA_FABRICA, limit: '8' }
+}
+
+/** O centro da cidade (o ponto aproximado, com o aviso no cartão). */
+export function consultaGeoapifyCidade(e: EnderecoPartido): ConsultaGeoapify | null {
+  if (e.livre || !e.cidade) return null
+  const consulta: ConsultaGeoapify = { city: e.cidade, country: 'Brasil', type: 'city', filter: filtroGeoapify(e.uf), limit: '5' }
+  const estado = nomeDoEstado(e.uf)
+  if (estado) consulta.state = estado
+  return consulta
+}
+
+/**
+ * O que se quer da resposta: a RUA (casa, rua ou lugar com rua — o resto é
+ * descartado: quando a Geoapify não acha a rua, ela devolve a cidade), o LUGAR
+ * (bairro ou cidade, para os degraus) ou o que vier (o endereço digitado à
+ * mão: a pessoa confere o pino na tela).
+ */
+export type ModoGeoapify = 'rua' | 'lugar' | 'livre'
+
+type ResultadoGeoapify = Record<string, unknown>
+
+/** Os candidatos de uma resposta da Geoapify (format=json: `{ results: [...] }`). */
+export function candidatosGeoapify(corpo: unknown, modo: ModoGeoapify = 'rua'): Candidato[] {
+  const resultados = (corpo as { results?: ResultadoGeoapify[] } | null)?.results
+  const lista: Candidato[] = []
+  for (const r of Array.isArray(resultados) ? resultados : []) {
+    if (!r || typeof r !== 'object') continue
+    const texto = (k: string) => (typeof r[k] === 'string' && (r[k] as string).trim() ? (r[k] as string) : null)
+    // sem coordenada o campo vem ausente — Number(null) seria 0 (o golfo da Guiné)
+    const lat = typeof r.lat === 'number' ? r.lat : Number.NaN
+    const lon = typeof r.lon === 'number' ? r.lon : Number.NaN
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue
+    const pais = texto('country_code')
+    if (pais && pais.toLowerCase() !== 'br') continue
+    const tipoDoMapa = texto('result_type') ?? 'unknown'
+    const deRua = tipoDoMapa === 'building' || tipoDoMapa === 'street' || tipoDoMapa === 'amenity'
+    const rua = texto('street') ?? (tipoDoMapa === 'street' ? texto('name') : null)
+    if (modo === 'rua' && (!deRua || !rua)) continue
+    if (modo === 'lugar' && deRua) continue
+    const numero = texto('housenumber')
+    lista.push({
+      lat,
+      lon,
+      tipo: tipoDoMapa === 'street' ? 'street' : deRua && numero ? 'house' : 'outro',
+      rua,
+      // o bairro e a cidade vêm sem "name": o nome é o do próprio campo
+      nome: texto('name') ?? (deRua ? null : texto(tipoDoMapa)),
+      numero,
+      lugares: ['suburb', 'district', 'quarter', 'neighbourhood', 'hamlet'].map(texto).filter((x): x is string => !!x),
+      cidades: ['city', 'town', 'village', 'municipality', 'county'].map(texto).filter((x): x is string => !!x),
+      estado: texto('state'),
+      cep: texto('postcode'),
+      fonte: 'geoapify',
     })
   }
   return lista

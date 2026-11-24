@@ -7,14 +7,12 @@ import { filtroAplicavel } from '@/kanban/filtroQuadro'
 import { cn } from '@/lib/cn'
 import { listarCaminhoes } from '@/admin/caminhoes'
 import {
-  GEOCODIFICAR_POR_CHAMADA,
   chaveDoGesto,
-  geocodificar,
   listarCandidatos,
   listarParadasAvulsas,
   listarProgramadas,
   ordenarRotaComParadas,
-  precisaGeocodificar,
+  programarEntrega,
   programarRota,
   programarRotaComParadas,
 } from './api'
@@ -52,6 +50,7 @@ import {
   MAXIMO_PARADAS,
   decodificarLinha,
   formatarDuracao,
+  inserirNaRota,
   ordemDaRota,
   ordemSugerida,
   ordenarCandidatos,
@@ -62,6 +61,7 @@ import {
 } from './rotaRuas'
 import { resumoDoTrajeto, trechosDaRota } from './trechos'
 import type { Trajeto } from './trechos'
+import { useGeocodificarFaltantes } from './useGeocodificarFaltantes'
 import { useRotaPelasRuas } from './useRotaPelasRuas'
 import { useAoVivo } from '@/lib/aoVivo'
 
@@ -73,6 +73,7 @@ const JanelaEnderecoPedido = lazy(() =>
 const RAIO_SUGESTAO_KM = 5
 const SEM_PONTOS: Ponto[] = []
 const SEM_PEDIDOS: PedidoProgramacao[] = []
+const CHAVE_PROGRAMACAO = ['programacao']
 
 /** SESSAO-41 (D-196): a rota em montagem tem pedidos E paradas avulsas (ainda não salvas). */
 type ItemMontagem = PedidoProgramacao | ItemAvulsa
@@ -130,8 +131,10 @@ export function AbaProgramar({
   // Os marcados para a rota, com os dados de quando foram marcados (D-199: o filtro
   // pode tirá-los da lista — da rota, não).
   const [marcados, setMarcados] = useState<Map<number, PedidoProgramacao>>(() => new Map())
-  // A ordem que a pessoa arrastou (D-111); null = a sugestão do mais perto.
-  const [rascunho, setRascunho] = useState<number[] | null>(null)
+  // SESSAO-56 (B1, pedido do dono — ↩️ revisa a D-111): a ordem da montagem é
+  // SEMPRE uma lista guardada. A sugestão só propõe o lugar de quem entra;
+  // tirar um pedido só o tira da lista — os outros não mudam de lugar.
+  const [rascunho, setRascunho] = useState<number[]>([])
   const [escolha, setEscolha] = useState<EscolhaDosFiltros>(SEM_FILTROS)
   const [confirmando, setConfirmando] = useState(false)
   const [caminhaoId, setCaminhaoId] = useState('')
@@ -178,25 +181,9 @@ export function AbaProgramar({
   })
 
   // Geocodificação preguiçosa: quem ainda não tem ponto vai à Edge Function
-  // (alguns por vez), uma vez só por chave nesta visita.
-  const pedidas = useRef<Set<string>>(new Set())
-  const geocodificarMutacao = useMutation({
-    mutationFn: geocodificar,
-    onSuccess: async () => {
-      await clienteQuery.invalidateQueries({ queryKey: ['programacao'] })
-    },
-  })
-  useEffect(() => {
-    if (geocodificarMutacao.isPending) return
-    const pendentes = pedidos
-      .filter((p) => precisaGeocodificar(p) && !pedidas.current.has(p.geo_chave!))
-      .slice(0, GEOCODIFICAR_POR_CHAMADA)
-    if (pendentes.length === 0) return
-    for (const p of pendentes) pedidas.current.add(p.geo_chave!)
-    geocodificarMutacao.mutate(
-      pendentes.map((p) => ({ chave: p.geo_chave!, endereco: p.endereco_geocodificavel! })),
-    )
-  }, [pedidos, geocodificarMutacao])
+  // (alguns por vez), uma vez só por chave nesta visita. ↪️ SESSAO-56: o mesmo
+  // gancho de "Já programadas" — a busca que não responde avisa no cartão.
+  useGeocodificarFaltantes(pedidos, CHAVE_PROGRAMACAO, ativa)
 
   // ---- a rota que se está montando ----------------------------------------
   const naLista = useMemo(() => new Map(pedidos.map((p) => [p.card_id, p])), [pedidos])
@@ -302,36 +289,57 @@ export function AbaProgramar({
               : `${ordemMontando.length} parada(s) · nenhuma no mapa`
 
   // ---- gestos ------------------------------------------------------------
+  // SESSAO-56 (B1): tirar = só sai da lista; incluir = entra onde o caminho
+  // aumenta menos, sem mexer na ordem relativa dos que já estavam (sem ponto
+  // no mapa: no fim — e fica lá quando o ponto chegar).
+  // ↪️ SESSAO-56 (ajustes — revisão): o gesto é ESTÁVEL (não muda a cada
+  // marcação) para o `memo` do CartaoPedido valer — os marcados e a ordem da
+  // tela são lidos por ref, e o rascunho muda pela forma funcional.
+  const marcadosRef = useRef(marcados)
+  const ordemRef = useRef(ordemMontando)
+  useEffect(() => {
+    marcadosRef.current = marcados
+    ordemRef.current = ordemMontando
+  })
   const alternar = useCallback((p: PedidoProgramacao) => {
+    const sai = marcadosRef.current.has(p.card_id)
     setMarcados((atual) => {
       const novo = new Map(atual)
-      if (novo.has(p.card_id)) novo.delete(p.card_id)
+      if (sai) novo.delete(p.card_id)
       else novo.set(p.card_id, p)
       return novo
     })
+    setRascunho((atual) =>
+      sai
+        ? atual.filter((id) => id !== p.card_id)
+        : idsDe(inserirNaRota<ItemMontagem>(ordemRef.current, p)),
+    )
   }, [])
   const escolherSugestao = alternar
   const reordenar = useCallback((novos: number[]) => setRascunho(novos), [])
-  const voltarSugestao = useCallback(() => setRascunho(null), [])
+  // a sugestão inteira de novo (o mais perto primeiro) — vira a ordem da tela e fica
+  const voltarSugestao = useCallback(() => setRascunho(ordemDaSugestao), [ordemDaSugestao])
   function limpar() {
     setMarcados(new Map())
-    setRascunho(null)
+    setRascunho([])
     setTrajeto('inteira')
     setAvulsas([])
   }
 
-  // SESSAO-41 (D-196): a parada avulsa entra na montagem — arrastou antes, ela vai para o fim
+  // SESSAO-41 (D-196): a parada avulsa entra na montagem — ↪️ SESSAO-56: como o
+  // pedido, no lugar onde o caminho aumenta menos (sem pino, no fim)
   function porAvulsa(dados: DadosParadaAvulsa) {
     const id = proximoIdAvulsa.current
     proximoIdAvulsa.current -= 1
     const rascunhoParada: RascunhoParada = { ...dados, chave: chaveDoGesto() }
-    setAvulsas((atual) => [...atual, itemDoRascunho(rascunhoParada, id)])
-    setRascunho((atual) => (atual ? [...atual, id] : atual))
+    const item = itemDoRascunho(rascunhoParada, id)
+    setAvulsas((atual) => [...atual, item])
+    setRascunho(idsDe(inserirNaRota<ItemMontagem>(ordemMontando, item)))
     setJanelaParada(null)
   }
   const tirarAvulsa = useCallback((id: number) => {
     setAvulsas((atual) => atual.filter((a) => a.card_id !== id))
-    setRascunho((atual) => (atual ? atual.filter((x) => x !== id) : atual))
+    setRascunho((atual) => atual.filter((x) => x !== id))
   }, [])
   // SESSAO-50 (bloco C): a parada da montagem editada (ainda não está no banco —
   // muda só na tela, com a mesma chave do gesto; o lugar dela na rota não muda)
@@ -363,15 +371,30 @@ export function AbaProgramar({
       rota: number
       /** A montagem NA ORDEM da tela: pedidos e paradas avulsas novas. */
       montagem: ItemMontagem[]
-      ajustada: boolean
     }): Promise<{ ordemSalva: boolean }> => {
       const cardIds = v.montagem.filter((p) => !ehAvulsa(p)).map((p) => p.card_id)
       const novas = v.montagem.flatMap((p) =>
         ehAvulsa(p) && !paradaSalva(p.avulsa) ? [p.avulsa] : [],
       )
+      // ↪️ SESSAO-56 (ajustes — resposta do dono, 23/11): UM pedido sozinho
+      // entra pela porta de um pedido só — o banco o põe no lugar mais perto do
+      // caminho da rota escolhida (rota vazia = 1ª parada; sem ponto = no fim),
+      // sem mexer na ordem dos outros. Uma chamada só. A montagem com vários
+      // pedidos continua abaixo: o bloco novo entra no fim, na ordem da tela.
+      if (cardIds.length === 1 && novas.length === 0 && v.montagem.length === 1) {
+        await programarEntrega({
+          cardId: cardIds[0],
+          data: v.data,
+          caminhaoId: v.caminhaoId,
+          rota: v.rota,
+        })
+        return { ordemSalva: true }
+      }
       // D-109: a rota escolhida do caminhão naquele dia (D-128) — quem já está
-      // nela fica na ordem dela e os novos entram no FIM; se nada estava salvo
-      // e a montagem não foi mexida, o banco fica com a sugestão de tudo.
+      // nela fica na ordem dela e os novos entram no FIM, na ordem da montagem.
+      // ↪️ SESSAO-56 (B1): a ordem da tela é SEMPRE gravada — acabou a rota que
+      // nascia sem ordem "porque ninguém arrastou" (e que se reordenava sozinha
+      // ao tirar um pedido ou quando um ponto chegava).
       // SESSAO-41 (D-196): a rota pode já ter parada avulsa (posta em "Já
       // programadas" ou pelo entregador) — elas dividem a ordem com os pedidos.
       const [programadas, paradasDoDia] = await Promise.all([
@@ -387,9 +410,7 @@ export function AbaProgramar({
         (p) => p.caminhao_id === v.caminhaoId && p.rota === v.rota,
       )
       if (novas.length === 0 && paradasExistentes.length === 0) {
-        const temSalva = existentes.some((p) => typeof p.ordem === 'number')
-        const ordem =
-          temSalva || v.ajustada ? [...idsDe(ordemDaRota(existentes)), ...cardIds] : null
+        const ordem = [...idsDe(ordemDaRota(existentes)), ...cardIds]
         await programarRota({
           data: v.data,
           caminhaoId: v.caminhaoId,
@@ -509,7 +530,7 @@ export function AbaProgramar({
               </div>
               <p className="text-xs text-texto-suave">
                 {ajustada
-                  ? 'Ordem ajustada à mão'
+                  ? 'Ordem da montagem (diferente da sugestão) — ela não muda sozinha'
                   : 'Ordem sugerida: o mais perto, a partir da fábrica'}{' '}
                 · arraste para mudar
               </p>
@@ -762,7 +783,7 @@ export function AbaProgramar({
       {confirmando && (
         <ModalProgramar
           titulo={`Programar ${listaSelecionados.length} pedido(s)`}
-          resumo={`${listaSelecionados.length} pedido(s) · ${pecas} ${pecas === 1 ? 'peça' : 'peças'}${nAvulsas > 0 ? ` · ${plural(nAvulsas, 'parada avulsa', 'paradas avulsas')}` : ''} — numa rota nova do caminhão, ou no fim de uma rota que ele já tem no dia.`}
+          resumo={`${listaSelecionados.length} pedido(s) · ${pecas} ${pecas === 1 ? 'peça' : 'peças'}${nAvulsas > 0 ? ` · ${plural(nAvulsas, 'parada avulsa', 'paradas avulsas')}` : ''} — numa rota nova do caminhão, ou ${listaSelecionados.length === 1 && nAvulsas === 0 ? 'numa rota que ele já tem no dia, no lugar mais perto do caminho' : 'no fim de uma rota que ele já tem no dia'}.`}
           diaInicial={hojeIso()}
           caminhaoInicial={caminhaoId}
           opcoesCaminhao={opcoesCaminhao}
@@ -776,7 +797,6 @@ export function AbaProgramar({
               caminhaoId: caminhao,
               rota,
               montagem: ordemMontando,
-              ajustada,
             })
           }}
         />

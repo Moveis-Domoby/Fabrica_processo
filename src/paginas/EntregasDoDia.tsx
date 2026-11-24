@@ -25,7 +25,7 @@ import {
   registrarEntrega,
   salvarParadaAvulsa,
 } from '@/rotas/api'
-import type { DadosParadaAvulsa, EntregaDoDia, ItemDaOrdem, TipoMotivo } from '@/rotas/api'
+import type { DadosParadaAvulsa, EntregaDoDia, TipoMotivo } from '@/rotas/api'
 import { ModalMotivoEntrega } from '@/rotas/ModaisEntrega'
 import { ModalEntregaParcial } from '@/rotas/ModalEntregaParcial'
 import { ConfirmarEntrega } from '@/rotas/ConfirmarEntrega'
@@ -193,18 +193,12 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
       dados: DadosParadaAvulsa
       chave: string
       alvo: { data: string; caminhaoId: number; rota: number }
-      ordemAtual: ItemDaOrdem[]
     }) => {
-      const base = { ...v.dados, ...v.alvo, chave: v.chave }
-      try {
-        // no FIM da rota como está na tela (a ordem fica salva para todos)
-        return await salvarParadaAvulsa({ ...base, ordem: [...v.ordemAtual, { t: 'nova' }] })
-      } catch (erro) {
-        // a rota mudou noutra tela: sem a ordem, o banco põe no fim do que está salvo
-        if (erro instanceof Error && /rota mudou/i.test(erro.message))
-          return salvarParadaAvulsa(base)
-        throw erro
-      }
+      // ↪️ SESSAO-56 (ajustes — provisória: a regra do dono para quem entra
+      // numa rota): o banco põe a parada no lugar mais perto do caminho (sem
+      // pino, no fim), sem mexer na ordem dos pedidos; depois a pessoa arrasta
+      // para o momento certo, se quiser.
+      return salvarParadaAvulsa({ ...v.dados, ...v.alvo, chave: v.chave })
     },
     onSuccess: async (r) => {
       notificar({
@@ -369,6 +363,10 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
                 posicao={item.posicao}
                 souLogistica={data?.sou_logistica ?? false}
                 aoMudarMomento={() => setMomento({ destaque: item.parada.id, vez: Date.now() })}
+                // SESSAO-56 (B2): tirar a parada não muda o lugar de mais ninguém
+                ordemSemEla={ordemDoDiaParaOBanco(itens).filter(
+                  (r) => !(r.t === 'a' && r.id === item.parada.id),
+                )}
               />
             )
           const entrega = item.entrega
@@ -504,7 +502,6 @@ export function EntregasDoDia({ embutida = false }: { embutida?: boolean }) {
               dados,
               chave: janelaParada,
               alvo: rotaAtual,
-              ordemAtual: ordemDoDiaParaOBanco(itens),
             })
         }}
       />

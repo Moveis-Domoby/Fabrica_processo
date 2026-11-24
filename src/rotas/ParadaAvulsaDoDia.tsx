@@ -4,7 +4,7 @@ import { CircleCheck, CircleX, ListOrdered, Pencil, Undo2, X } from 'lucide-reac
 import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
 import { cn } from '@/lib/cn'
 import { concluirParadaAvulsa, removerParadaAvulsa } from './api'
-import type { ParadaAvulsa } from './api'
+import type { ItemDaOrdem, ParadaAvulsa } from './api'
 import { BotoesParada } from './BotoesNavegacao'
 import { NumeroParadaAvulsa, SeloSituacaoParada } from './CartaoParadaAvulsa'
 import { useEditarParada } from './editarParada'
@@ -44,11 +44,14 @@ export function CartaoParadaDoDia({
   posicao,
   souLogistica,
   aoMudarMomento,
+  ordemSemEla,
 }: {
   parada: ParadaAvulsa
   posicao: number
   souLogistica: boolean
   aoMudarMomento: () => void
+  /** SESSAO-56 (B2): a ordem da rota sem esta parada — vai junto no "tirar da rota". */
+  ordemSemEla?: ItemDaOrdem[]
 }) {
   const notificar = useNotificacao()
   const invalidar = useInvalidarParadas()
@@ -86,7 +89,7 @@ export function CartaoParadaDoDia({
       }),
   })
   const remover = useMutation({
-    mutationFn: () => removerParadaAvulsa(parada.id),
+    mutationFn: () => removerParadaAvulsa(parada.id, ordemSemEla),
     onSuccess: async () => {
       notificar({ titulo: `A parada "${parada.titulo}" saiu da rota`, tom: 'perfeito' })
       await invalidar()

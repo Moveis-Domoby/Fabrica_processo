@@ -8,6 +8,7 @@ import {
   Tooltip,
   useMap,
 } from 'react-leaflet'
+import { ATRIBUICAO_MAPA } from './atribuicaoMapa'
 import { latLngBounds } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { iconeParadaAvulsa } from './iconeAvulsa'
@@ -61,7 +62,7 @@ export default function MiniMapaEntregas({ pontos }: { pontos: PontoDoMiniMapa[]
       style={{ height: '100%', width: '100%' }}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution={ATRIBUICAO_MAPA}
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <Enquadrar pontos={enquadrar} />

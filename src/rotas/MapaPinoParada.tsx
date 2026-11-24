@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { RefObject } from 'react'
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import { ATRIBUICAO_MAPA } from './atribuicaoMapa'
 import type { Marker as MarcadorLeaflet } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { iconePino } from './iconeAvulsa'
@@ -64,7 +65,7 @@ export default function MapaPinoParada({
       style={{ height: '100%', width: '100%' }}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution={ATRIBUICAO_MAPA}
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <Centralizar latitude={latitude} longitude={longitude} ultimoMovido={ultimoMovido} />
