@@ -1,5 +1,5 @@
 ---
-titulo: "Lei de Desempenho — as dívidas registradas e o andamento (parte 2 de 3)"
+titulo: "Lei de Desempenho — as dívidas registradas e o andamento (parte 2 de 4)"
 tipo: lei-dividas
 atualizado: 2026-11-18
 tags: [plataforma, desempenho, dividas]
@@ -7,7 +7,7 @@ tags: [plataforma, desempenho, dividas]
 
 # ⚡ PLT - Lei de Desempenho - Dividas e Andamento 2
 
-> O §14 de [[PLT - Lei de Desempenho e Escala]], movido em 18/11/2026 sem reescrever: a tabela das dívidas e o andamento de cada sessão, em ordem de data. **Dívida nova e andamento novo entram no fim da última parte.** Partes: [[PLT - Lei de Desempenho - Dividas e Andamento 1]] · [[PLT - Lei de Desempenho - Dividas e Andamento 2]] · [[PLT - Lei de Desempenho - Dividas e Andamento 3]].
+> O §14 de [[PLT - Lei de Desempenho e Escala]], movido em 18/11/2026 sem reescrever: a tabela das dívidas e o andamento de cada sessão, em ordem de data. **Dívida nova e andamento novo entram no fim da última parte.** Partes: [[PLT - Lei de Desempenho - Dividas e Andamento 1]] · [[PLT - Lei de Desempenho - Dividas e Andamento 2]] · [[PLT - Lei de Desempenho - Dividas e Andamento 3]] · [[PLT - Lei de Desempenho - Dividas e Andamento 4]].
 
 **Andamento (SESSAO-38 · Logística, 21/10 — [[D-156 - A rota aceita QUALQUER pedido vivo o Lancar para ROTAS deixa|D-156]]…[[D-159 - O mapa da rota So a ida e So a volta o Programar sem espaco|D-159]]):**
 - **Expedição numa requisição** (`plt_fn_expedicao`: a página + os números dos 5 filtros; filtro e página no servidor; deslocamento limitado — o conjunto é o que está em andamento, teto 100). Banco real como `authenticated`, 41 pedidos vivos: 1ª chamada fria 116 ms, depois **~10 ms**. A tela "Pedidos em aguardo" (2 leituras — dívida 18) **saiu**; a visão "Peça por peça" só pede no clique.

@@ -280,3 +280,8 @@ _docs/Plataforma/
 - **Modo escuro** (Q-30): os tokens já existem em `[data-tema='escuro']` e o `@custom-variant escuro` está definido — falta a decisão do dono e um alternador. Nenhum componente precisa mudar.
 - **Logo oficial** em arquivo: hoje `<Marca />` é tipográfica.
 - **Densidade da tela do setor**: será calibrada na SESSAO-07, com o tablet real na mão.
+
+## A janela de confirmação (padrão do Comercial — SESSAO-54, [[D-351 - A janela de confirmacao do Comercial pergunta no titulo e|D-351]])
+
+- **Pergunta no título, aviso no corpo** (o que acontece), **"Voltar" + o verbo do gesto** ("Excluir", "Parar o disparo"). Vermelho para destruir (excluir, encerrar, remover); amarelo para "parar". Durante o gesto a janela fica aberta com o botão girando.
+- Hoje é um componente só do Comercial (`src/comercial/components/ModalConfirmacao.tsx`); se o dono gostar, sobe para `componentes/ui` numa sessão que possa mexer na casa. Nada de `confirm()`/`alert()` do navegador: aviso é o da casa.

@@ -135,7 +135,7 @@ tags: [regras, leitura-obrigatoria, cofre]
 - [ ] Pacote: JS inicial e o pedaço da tela, antes/depois.
 - [ ] Escrita idempotente; chamada externa com tempo limite, espera crescente e disjuntor.
 - [ ] Tablet/celular sem travada na tela tocada.
-- [ ] O que ficou fora da lei virou **dívida registrada** (última parte de [[PLT - Lei de Desempenho - Dividas e Andamento 3]]) — atalho só com o OK do dono, como decisão.
+- [ ] O que ficou fora da lei virou **dívida registrada** (última parte de [[PLT - Lei de Desempenho - Dividas e Andamento 4]]) — atalho só com o OK do dono, como decisão.
 
 ## 5. Design — o essencial (o resto: [[PLT - Modelo de Sistema]])
 

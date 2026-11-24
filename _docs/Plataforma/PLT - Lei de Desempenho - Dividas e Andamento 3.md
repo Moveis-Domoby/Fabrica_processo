@@ -1,5 +1,5 @@
 ---
-titulo: "Lei de Desempenho — as dívidas registradas e o andamento (parte 3 de 3)"
+titulo: "Lei de Desempenho — as dívidas registradas e o andamento (parte 3 de 4)"
 tipo: lei-dividas
 atualizado: 2026-11-18
 tags: [plataforma, desempenho, dividas]
@@ -7,7 +7,7 @@ tags: [plataforma, desempenho, dividas]
 
 # ⚡ PLT - Lei de Desempenho - Dividas e Andamento 3
 
-> O §14 de [[PLT - Lei de Desempenho e Escala]], movido em 18/11/2026 sem reescrever: a tabela das dívidas e o andamento de cada sessão, em ordem de data. **Dívida nova e andamento novo entram no fim da última parte.** Partes: [[PLT - Lei de Desempenho - Dividas e Andamento 1]] · [[PLT - Lei de Desempenho - Dividas e Andamento 2]] · [[PLT - Lei de Desempenho - Dividas e Andamento 3]].
+> O §14 de [[PLT - Lei de Desempenho e Escala]], movido em 18/11/2026 sem reescrever: a tabela das dívidas e o andamento de cada sessão, em ordem de data. **Dívida nova e andamento novo entram no fim da última parte.** Partes: [[PLT - Lei de Desempenho - Dividas e Andamento 1]] · [[PLT - Lei de Desempenho - Dividas e Andamento 2]] · [[PLT - Lei de Desempenho - Dividas e Andamento 3]] · [[PLT - Lei de Desempenho - Dividas e Andamento 4]].
 
 **Andamento (SESSAO-47 · pedido adiantado no Tiny, o dia real da entrega, vários comprovantes e a configuração do painel de tempos, 09/11 — [[D-271 - O pedido que o Tiny levou adiante e ainda tem produto|D-271]]…[[D-289 - Detalhes da configuracao do painel|D-289]]; ✅ banco e site no ar em 09/11 ~20:45; ✅ o fecho do calendário — `20261109050000` — aplicado às ~22:20):**
 

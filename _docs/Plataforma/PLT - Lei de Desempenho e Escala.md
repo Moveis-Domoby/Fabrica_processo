@@ -182,7 +182,7 @@ Atalho que fere esta lei **só com o OK do dono**, registrado como **D-NN** com 
 - ↪️ **05/11/2026 ([[D-231 - O modo TV|D-231]], SESSAO-43) — o Modo TV relê UMA vez na virada do dia.** A TV fica ligada dia e noite; o "hoje", o mês e os 14 dias mudam à meia-noite sem que nenhum móvel feche (não há fato para empurrar). A tela agenda UMA leitura para o primeiro minuto do dia seguinte (calculado no aparelho), não um relógio que pergunta de tempo em tempo; o resto do dia é só o canal do setor (websocket). O relógio da tela se redesenha a cada 30 s **no aparelho**, sem buscar dado.
 ## 14. Retrato de 07/10/2026 — as dívidas de hoje (lido no código e no banco, só leitura)
 
-> ↪️ **18/11/2026 (SESSAO-49):** a tabela das dívidas e o andamento de cada sessão saíram daqui, sem reescrever, para [[PLT - Lei de Desempenho - Dividas e Andamento 1]] · [[PLT - Lei de Desempenho - Dividas e Andamento 2]] · [[PLT - Lei de Desempenho - Dividas e Andamento 3]]. O checklist do §12 está também, resumido, em [[000 - REGRAS DE OURO]]. Sessão que tocar desempenho lê esta lei (a parte fixa) e registra dívida e andamento **na última parte**.
+> ↪️ **18/11/2026 (SESSAO-49):** a tabela das dívidas e o andamento de cada sessão saíram daqui, sem reescrever, para [[PLT - Lei de Desempenho - Dividas e Andamento 1]] · [[PLT - Lei de Desempenho - Dividas e Andamento 2]] · [[PLT - Lei de Desempenho - Dividas e Andamento 3]] · [[PLT - Lei de Desempenho - Dividas e Andamento 4]]. O checklist do §12 está também, resumido, em [[000 - REGRAS DE OURO]]. Sessão que tocar desempenho lê esta lei (a parte fixa) e registra dívida e andamento **na última parte**.
 
 ## Fontes
 
