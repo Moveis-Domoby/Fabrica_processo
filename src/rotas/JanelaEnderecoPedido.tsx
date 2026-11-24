@@ -523,8 +523,8 @@ export function JanelaEnderecoPedido({
               )}
               {busca === 'falhou' && (
                 <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
-                  Não consegui consultar o mapa agora. Marque o lugar tocando no mapa e arrastando o
-                  pino.
+                  A busca de endereço não respondeu. Marque o ponto no mapa (toque e arraste o pino)
+                  ou tente de novo.
                 </p>
               )}
               <div className="h-56 overflow-hidden rounded-dm-lg border border-borda sm:h-64">

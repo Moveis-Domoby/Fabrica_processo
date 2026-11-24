@@ -617,17 +617,29 @@ export interface ResultadoGeocodificacao {
   latitude: number | null
   longitude: number | null
   resolvido: boolean
+  /**
+   * SESSAO-56: nenhum buscador respondeu (recusa, cota, fora do ar) — nada foi
+   * gravado e NÃO é "não achei": a tela avisa e oferece tentar de novo.
+   */
+  tentar_depois?: boolean
+}
+
+/** A resposta da busca: os resultados e, do servidor novo, desde quando a busca está fora. */
+export interface RespostaGeocodificacao {
+  resultados: ResultadoGeocodificacao[]
+  /** ISO da queda; null = respondendo; undefined = o servidor de antes da SESSAO-56 (não diz). */
+  foraDesde?: string | null
 }
 
 /**
- * Geocodificação pela Edge Function `geocodificar` (Nominatim com ritmo e
- * identificação — o navegador não consegue garantir nenhum dos dois). Até 5
- * por chamada (D-112: 3 tentativas por endereço); o resultado já fica no cache.
+ * Geocodificação pela Edge Function `geocodificar` (↪️ SESSAO-56: a Geoapify,
+ * com a chave guardada no servidor; o Photon de reserva). Até 5 por chamada; o
+ * resultado já fica no cache.
  */
 export async function geocodificar(
   itens: { chave: string; endereco: string }[],
-): Promise<ResultadoGeocodificacao[]> {
-  if (itens.length === 0) return []
+): Promise<RespostaGeocodificacao> {
+  if (itens.length === 0) return { resultados: [] }
   const { data, error } = await supabase.functions.invoke('geocodificar', {
     body: { itens: itens.slice(0, GEOCODIFICAR_POR_CHAMADA) },
   })
@@ -643,7 +655,11 @@ export async function geocodificar(
     }
     throw new Error(mensagem)
   }
-  return (data as { resultados?: ResultadoGeocodificacao[] })?.resultados ?? []
+  const corpo = data as {
+    resultados?: ResultadoGeocodificacao[]
+    busca?: { fora_desde?: string | null }
+  } | null
+  return { resultados: corpo?.resultados ?? [], foraDesde: corpo?.busca?.fora_desde }
 }
 
 /**
@@ -1365,14 +1381,32 @@ export async function chaveGeoDaParada(endereco: string): Promise<string> {
   return `avulsa:${h1.toString(16).padStart(8, '0')}${h2.toString(16).padStart(8, '0')}`
 }
 
-/** O ponto de um endereço digitado (pela mesma função `geocodificar` — e o mesmo cache). */
+/**
+ * SESSAO-56: a busca não RESPONDEU (os buscadores recusaram ou estão fora) —
+ * diferente de "não achei": as janelas mostram o aviso de tentar de novo.
+ */
+export class BuscaSemResposta extends Error {
+  constructor() {
+    super('A busca de endereço não respondeu. Marque o ponto no mapa ou tente de novo.')
+    this.name = 'BuscaSemResposta'
+  }
+}
+
+/**
+ * O ponto de um endereço digitado (pela mesma função `geocodificar` — e o
+ * mesmo cache). `null` = o mapa não achou; busca sem resposta = `BuscaSemResposta`
+ * (↪️ SESSAO-56: antes os dois casos voltavam `null`).
+ */
 export async function acharPontoDoEndereco(
   endereco: string,
 ): Promise<{ latitude: number; longitude: number } | null> {
   const texto = endereco.trim()
   if (texto.length < 3) return null
   const chave = await chaveGeoDaParada(texto)
-  const [resultado] = await geocodificar([{ chave, endereco: texto }])
+  const {
+    resultados: [resultado],
+  } = await geocodificar([{ chave, endereco: texto }])
+  if (resultado?.tentar_depois) throw new BuscaSemResposta()
   if (!resultado?.resolvido || resultado.latitude === null || resultado.longitude === null)
     return null
   return { latitude: resultado.latitude, longitude: resultado.longitude }

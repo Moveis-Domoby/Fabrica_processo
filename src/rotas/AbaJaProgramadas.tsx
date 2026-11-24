@@ -97,6 +97,7 @@ const JanelaEnderecoPedido = lazy(() =>
 const POR_PAGINA = 50
 const SEM_PONTOS: Ponto[] = []
 const SEM_PARADAS: ParadaAvulsa[] = []
+const CHAVE_PROGRAMADAS = ['programadas']
 
 const idsDe = (lista: { card_id: number }[]) => lista.map((p) => p.card_id)
 const mesmaOrdem = (a: number[], b: number[]) =>
@@ -264,7 +265,7 @@ export function AbaJaProgramadas({
 
   const linhas = useMemo(() => consulta.data?.pages.flat() ?? [], [consulta.data])
   // SESSAO-41 (D-193): o ponto do endereço de entrega que ainda falta, aqui mesmo.
-  useGeocodificarFaltantes(linhas, ['programadas'], ativa && !entregues)
+  useGeocodificarFaltantes(linhas, CHAVE_PROGRAMADAS, ativa && !entregues)
   const total = consulta.data?.pages[0]?.[0]?.contagem_total ?? 0
 
   // Dia → caminhão → rota → paradas, na ordem que o banco devolve.

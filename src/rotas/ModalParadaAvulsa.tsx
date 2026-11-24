@@ -180,8 +180,8 @@ export function ModalParadaAvulsa({
           )}
           {busca === 'falhou' && (
             <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
-              Não consegui consultar o mapa agora. Marque o lugar tocando no mapa, tente de novo, ou
-              salve só com o endereço escrito.
+              A busca de endereço não respondeu. Marque o ponto no mapa ou tente de novo — ou salve
+              só com o endereço escrito.
             </p>
           )}
           {enderecoMudou && (

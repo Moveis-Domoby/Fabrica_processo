@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MapPinPlus, Pencil, Route, Truck, X } from 'lucide-react'
 import { Botao, Dica, useNotificacao } from '@/componentes/ui'
@@ -7,14 +7,11 @@ import { filtroAplicavel } from '@/kanban/filtroQuadro'
 import { cn } from '@/lib/cn'
 import { listarCaminhoes } from '@/admin/caminhoes'
 import {
-  GEOCODIFICAR_POR_CHAMADA,
   chaveDoGesto,
-  geocodificar,
   listarCandidatos,
   listarParadasAvulsas,
   listarProgramadas,
   ordenarRotaComParadas,
-  precisaGeocodificar,
   programarRota,
   programarRotaComParadas,
 } from './api'
@@ -62,6 +59,7 @@ import {
 } from './rotaRuas'
 import { resumoDoTrajeto, trechosDaRota } from './trechos'
 import type { Trajeto } from './trechos'
+import { useGeocodificarFaltantes } from './useGeocodificarFaltantes'
 import { useRotaPelasRuas } from './useRotaPelasRuas'
 import { useAoVivo } from '@/lib/aoVivo'
 
@@ -73,6 +71,7 @@ const JanelaEnderecoPedido = lazy(() =>
 const RAIO_SUGESTAO_KM = 5
 const SEM_PONTOS: Ponto[] = []
 const SEM_PEDIDOS: PedidoProgramacao[] = []
+const CHAVE_PROGRAMACAO = ['programacao']
 
 /** SESSAO-41 (D-196): a rota em montagem tem pedidos E paradas avulsas (ainda não salvas). */
 type ItemMontagem = PedidoProgramacao | ItemAvulsa
@@ -178,25 +177,9 @@ export function AbaProgramar({
   })
 
   // Geocodificação preguiçosa: quem ainda não tem ponto vai à Edge Function
-  // (alguns por vez), uma vez só por chave nesta visita.
-  const pedidas = useRef<Set<string>>(new Set())
-  const geocodificarMutacao = useMutation({
-    mutationFn: geocodificar,
-    onSuccess: async () => {
-      await clienteQuery.invalidateQueries({ queryKey: ['programacao'] })
-    },
-  })
-  useEffect(() => {
-    if (geocodificarMutacao.isPending) return
-    const pendentes = pedidos
-      .filter((p) => precisaGeocodificar(p) && !pedidas.current.has(p.geo_chave!))
-      .slice(0, GEOCODIFICAR_POR_CHAMADA)
-    if (pendentes.length === 0) return
-    for (const p of pendentes) pedidas.current.add(p.geo_chave!)
-    geocodificarMutacao.mutate(
-      pendentes.map((p) => ({ chave: p.geo_chave!, endereco: p.endereco_geocodificavel! })),
-    )
-  }, [pedidos, geocodificarMutacao])
+  // (alguns por vez), uma vez só por chave nesta visita. ↪️ SESSAO-56: o mesmo
+  // gancho de "Já programadas" — a busca que não responde avisa no cartão.
+  useGeocodificarFaltantes(pedidos, CHAVE_PROGRAMACAO, ativa)
 
   // ---- a rota que se está montando ----------------------------------------
   const naLista = useMemo(() => new Map(pedidos.map((p) => [p.card_id, p])), [pedidos])
