@@ -2,7 +2,7 @@
 // PLATAFORMA DE PRODUÇÃO DOMOBY · o FLUXO da busca de endereço — SESSAO-56
 //
 // A ordem dos buscadores e dos degraus, sem Deno e com a rede INJETADA — o
-// Vitest prova a ordem (src/rotas/fluxoBusca.test.ts) sem chamar ninguém:
+// Vitest prova a ordem (src/rotas/buscaGeoapify.test.ts) sem chamar ninguém:
 //
 //   1. a GEOAPIFY (chave própria da Domoby — escolha do dono, 23/11/2026);
 //   2. se a Geoapify recusar ou falhar (sem chave, 401/403/429/5xx, tempo

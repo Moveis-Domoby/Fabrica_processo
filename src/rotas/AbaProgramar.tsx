@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MapPinPlus, Pencil, Route, Truck, X } from 'lucide-react'
 import { Botao, Dica, useNotificacao } from '@/componentes/ui'
@@ -291,23 +291,29 @@ export function AbaProgramar({
   // SESSAO-56 (B1): tirar = só sai da lista; incluir = entra onde o caminho
   // aumenta menos, sem mexer na ordem relativa dos que já estavam (sem ponto
   // no mapa: no fim — e fica lá quando o ponto chegar).
-  const alternar = useCallback(
-    (p: PedidoProgramacao) => {
-      const sai = marcados.has(p.card_id)
-      setMarcados((atual) => {
-        const novo = new Map(atual)
-        if (sai) novo.delete(p.card_id)
-        else novo.set(p.card_id, p)
-        return novo
-      })
-      setRascunho(
-        sai
-          ? idsMontando.filter((id) => id !== p.card_id)
-          : idsDe(inserirNaRota<ItemMontagem>(ordemMontando, p)),
-      )
-    },
-    [marcados, idsMontando, ordemMontando],
-  )
+  // ↪️ SESSAO-56 (ajustes — revisão): o gesto é ESTÁVEL (não muda a cada
+  // marcação) para o `memo` do CartaoPedido valer — os marcados e a ordem da
+  // tela são lidos por ref, e o rascunho muda pela forma funcional.
+  const marcadosRef = useRef(marcados)
+  const ordemRef = useRef(ordemMontando)
+  useEffect(() => {
+    marcadosRef.current = marcados
+    ordemRef.current = ordemMontando
+  })
+  const alternar = useCallback((p: PedidoProgramacao) => {
+    const sai = marcadosRef.current.has(p.card_id)
+    setMarcados((atual) => {
+      const novo = new Map(atual)
+      if (sai) novo.delete(p.card_id)
+      else novo.set(p.card_id, p)
+      return novo
+    })
+    setRascunho((atual) =>
+      sai
+        ? atual.filter((id) => id !== p.card_id)
+        : idsDe(inserirNaRota<ItemMontagem>(ordemRef.current, p)),
+    )
+  }, [])
   const escolherSugestao = alternar
   const reordenar = useCallback((novos: number[]) => setRascunho(novos), [])
   // a sugestão inteira de novo (o mais perto primeiro) — vira a ordem da tela e fica
