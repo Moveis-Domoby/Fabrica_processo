@@ -639,6 +639,14 @@ export interface ResultadoGeocodificacao {
    * gravado e NÃO é "não achei": a tela avisa e oferece tentar de novo.
    */
   tentar_depois?: boolean
+  /**
+   * SESSAO-57: o endereço DIGITADO sem a rua — só o bairro ou a cidade
+   * (`resolvido: false`; latitude/longitude = onde abrir o mapa, não a casa).
+   * Ausente = o servidor de antes da SESSAO-57 (ou achou a rua).
+   */
+  aproximado?: 'bairro' | 'cidade'
+  /** SESSAO-57: o nome do bairro ou da cidade do `aproximado`. */
+  lugar?: string | null
 }
 
 /** A resposta da busca: os resultados e, do servidor novo, desde quando a busca está fora. */
@@ -1420,13 +1428,23 @@ export class BuscaSemResposta extends Error {
 }
 
 /**
- * O ponto de um endereço digitado (pela mesma função `geocodificar` — e o
- * mesmo cache). `null` = o mapa não achou; busca sem resposta = `BuscaSemResposta`
- * (↪️ SESSAO-56: antes os dois casos voltavam `null`).
+ * SESSAO-57: o que "Achar no mapa" devolve — o ponto e, quando a rua NÃO foi
+ * achada, de qual lugar ele é (o bairro ou o centro da cidade): a janela avisa
+ * e só salva depois de arrastar o pino (ou de "salvar assim mesmo").
  */
-export async function acharPontoDoEndereco(
-  endereco: string,
-): Promise<{ latitude: number; longitude: number } | null> {
+export interface PontoAchado {
+  latitude: number
+  longitude: number
+  aproximado?: { nivel: 'bairro' | 'cidade'; nome: string | null }
+}
+
+/**
+ * O ponto de um endereço digitado (pela mesma função `geocodificar`). `null` =
+ * o mapa não achou; busca sem resposta = `BuscaSemResposta` (↪️ SESSAO-56:
+ * antes os dois casos voltavam `null`). ↪️ SESSAO-57: só o bairro ou a cidade
+ * = o ponto do lugar com `aproximado` (antes ele vinha como se fosse a rua).
+ */
+export async function acharPontoDoEndereco(endereco: string): Promise<PontoAchado | null> {
   const texto = endereco.trim()
   if (texto.length < 3) return null
   const chave = await chaveGeoDaParada(texto)
@@ -1434,9 +1452,38 @@ export async function acharPontoDoEndereco(
     resultados: [resultado],
   } = await geocodificar([{ chave, endereco: texto }])
   if (resultado?.tentar_depois) throw new BuscaSemResposta()
-  if (!resultado?.resolvido || resultado.latitude === null || resultado.longitude === null)
+  if (!resultado || resultado.latitude === null || resultado.longitude === null) return null
+  if (resultado.resolvido) return { latitude: resultado.latitude, longitude: resultado.longitude }
+  if (resultado.aproximado) {
+    return {
+      latitude: resultado.latitude,
+      longitude: resultado.longitude,
+      aproximado: { nivel: resultado.aproximado, nome: resultado.lugar ?? null },
+    }
+  }
+  return null
+}
+
+/**
+ * SESSAO-57 (frente 2): o ponto do CEP para conferir o pino antes de salvar —
+ * uma chamada leve à mesma função (`{ conferir: { cep } }`). Qualquer falha
+ * (serviço de CEP fora, função de antes, sem internet) = null: não bloqueia nada.
+ */
+export async function pontoDoCepParaConferir(
+  cep: string,
+): Promise<{ latitude: number; longitude: number } | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('geocodificar', {
+      body: { conferir: { cep } },
+    })
+    if (error) return null
+    const c = (data as { conferir?: { latitude?: unknown; longitude?: unknown } | null } | null)
+      ?.conferir
+    if (!c || typeof c.latitude !== 'number' || typeof c.longitude !== 'number') return null
+    return { latitude: c.latitude, longitude: c.longitude }
+  } catch {
     return null
-  return { latitude: resultado.latitude, longitude: resultado.longitude }
+  }
 }
 
 /** Uma chave nova por gesto (o toque repetido não dobra a parada). */

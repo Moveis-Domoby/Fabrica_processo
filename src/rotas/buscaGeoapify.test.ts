@@ -91,8 +91,11 @@ describe('candidatosGeoapify — a resposta da Geoapify vira candidato', () => {
     expect(lugares.map((l) => l.nome)).toEqual(['Natal', 'Lagoa Nova'])
   })
 
-  it('o endereço digitado à mão aceita o que vier (a pessoa confere o pino)', () => {
-    expect(candidatosGeoapify({ results: [cidadeNatal, casa] }, 'livre')).toHaveLength(2)
+  it('o endereço digitado à mão traz a rua e o lugar — ↪️ SESSAO-57: o lugar vem MARCADO (não é a rua)', () => {
+    const lista = candidatosGeoapify({ results: [cidadeNatal, casa] }, 'livre')
+    expect(lista).toHaveLength(2)
+    expect(lista[0]).toMatchObject({ lugar: 'cidade', nome: 'Natal' })
+    expect(lista[1].lugar).toBeUndefined()
   })
 
   it('fora do Brasil, sem ponto ou resposta torta: nada', () => {
@@ -279,9 +282,12 @@ describe('procurarEndereco — a ordem dos buscadores', () => {
     expect(para('photon')).toHaveLength(0)
   })
 
-  it('o endereço digitado à mão: o 1º resultado, para a pessoa conferir o pino', async () => {
+  it('o endereço digitado à mão que só acha o bairro — ↪️ SESSAO-57: o bairro é só onde abrir o mapa, não "achou"', async () => {
     const { amb, para } = ambiente({ geoapify: () => ({ corpo: { results: [bairroLagoaNova] } }) })
-    expect(await procurarEndereco('lagoa nova perto do shopping', amb)).toEqual({ tipo: 'ok', lat: -5.8215, lon: -35.2099, fonte: 'geoapify' })
+    expect(await procurarEndereco('lagoa nova perto do shopping', amb)).toEqual({
+      tipo: 'aproximado',
+      lugar: { lat: -5.8215, lon: -35.2099, nivel: 'bairro', nome: 'Lagoa Nova' },
+    })
     expect(para('geoapify')[0].searchParams.get('text')).toBe('lagoa nova perto do shopping')
   })
 })

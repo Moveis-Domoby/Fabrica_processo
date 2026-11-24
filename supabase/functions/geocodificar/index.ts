@@ -54,9 +54,22 @@
 // de novo com a linha travada e marca `avisado`). Uma vez por queda; sem relógio.
 //
 //   → { resultados: [...], busca: { fora_desde: <ISO> | null, avisado } }
+//
+// ↪️ SESSAO-57 (24/11/2026 — o pino do 13961 a 5 km da casa): o endereço
+// DIGITADO ("Achar no mapa") não aceita mais o bairro ou a cidade como se
+// fosse a rua. Só achou o lugar → `resolvido: false` + `aproximado` ('bairro'
+// | 'cidade') + `lugar` (o nome), com o ponto do lugar em latitude/longitude
+// só como onde abrir o mapa (o site de antes lê `resolvido: false` como "não
+// achei", como sempre). O endereço digitado não usa mais o cache (o toque da
+// pessoa procura sempre — o que a versão de antes gravou como rua podia ser
+// a cidade); o resultado continua gravado, o lugar com fonte 'aprox_bairro' /
+// 'aprox_cidade' e `resolvido = false`.
+//   E a conferência do pino salvo à mão, numa chamada leve:
+//   POST { conferir: { cep } } → { conferir: { cep, latitude, longitude } | null }
+//   (o ponto do CEP pelo serviço de CEP; sem resposta = null — a tela não bloqueia)
 // ============================================================================
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { deveAvisarFora, procurarEndereco, proximoEstado } from './fluxo.ts'
+import { deveAvisarFora, pontoParaConferir, procurarEndereco, proximoEstado } from './fluxo.ts'
 import type { Ambiente, Consulta, EstadoDaBusca } from './fluxo.ts'
 
 const URL_SUPABASE = Deno.env.get('SUPABASE_URL')!
@@ -140,6 +153,10 @@ interface Resultado {
   resolvido: boolean
   /** O serviço recusou/falhou: nada gravado, tentar de novo depois. */
   tentar_depois?: boolean
+  /** SESSAO-57: só o bairro ou a cidade (endereço digitado) — o ponto é onde abrir o mapa. */
+  aproximado?: 'bairro' | 'cidade'
+  /** SESSAO-57: o nome do bairro ou da cidade do `aproximado` (para o aviso da tela). */
+  lugar?: string | null
 }
 
 interface LinhaCache {
@@ -180,6 +197,9 @@ async function buscarJson(url: URL, cabecalhos: Record<string, string>): Promise
 /** O que o cache já sabe vale — menos o que a busca antiga gravou (refeito uma vez). */
 function cacheVale(g: LinhaCache, chave: string): boolean {
   if (g.fonte === 'manual') return true
+  // SESSAO-57: o endereço DIGITADO procura sempre (é o toque da pessoa) — a
+  // versão de antes gravou a cidade como se fosse a rua (o 13961)
+  if (chave.startsWith('avulsa:')) return false
   const quando = new Date(g.consultado_em).getTime()
   // o endereço DIGITADO (avulsa) foi conferido por alguém no pino — não refaz
   const antigo = quando < VERSAO_BUSCA && !chave.startsWith('avulsa:')
@@ -201,12 +221,37 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return erro(405, 'Use POST.')
   if (!(await pessoaAtiva(req))) return erro(401, 'Só pessoa ativa da plataforma consulta endereços.')
 
-  let corpo: { itens?: Item[] }
+  let corpo: { itens?: Item[]; conferir?: { cep?: unknown } }
   try {
     corpo = await req.json()
   } catch {
     return erro(400, 'Corpo inválido — envie { itens: [{ chave, endereco }] }.')
   }
+
+  // SESSAO-57 (frente 2): a conferência do pino — só o ponto do CEP, sem cache nem estado
+  if (corpo && typeof corpo.conferir === 'object' && corpo.conferir !== null) {
+    const ambienteCep: Ambiente = {
+      buscar: buscarJson,
+      esperar: () => dormir(INTERVALO_MS),
+      chaveGeoapify: null,
+      userAgent: USER_AGENT,
+      recusas: [],
+      geoapifyRecusou: false,
+    }
+    let ponto: { lat: number; lon: number } | null = null
+    try {
+      ponto = await pontoParaConferir(corpo.conferir.cep, ambienteCep)
+    } catch (e) {
+      ambienteCep.recusas.push(e instanceof Error ? e.name : 'falha')
+    }
+    if (ambienteCep.recusas.length > 0) {
+      console.warn(`geocodificar: conferir o CEP — ${[...new Set(ambienteCep.recusas)].join(', ')}`)
+    }
+    return resposta(200, {
+      conferir: ponto ? { cep: String(corpo.conferir.cep ?? ''), latitude: ponto.lat, longitude: ponto.lon } : null,
+    })
+  }
+
   const itens = (corpo.itens ?? [])
     // a chave reservada do estado da busca nunca é um endereço
     .filter((i) => i && typeof i.chave === 'string' && typeof i.endereco === 'string' && i.endereco.trim() && i.chave !== CHAVE_ESTADO)
@@ -275,6 +320,10 @@ Deno.serve(async (req) => {
     if (consulta.tipo === 'vazio') motivos.push(consulta.motivo)
     if (consulta.tipo === 'ok' && consulta.fonte.startsWith('aprox_')) aproximados.push(consulta.fonte.slice(6))
     const ponto = consulta.tipo === 'ok' ? { lat: consulta.lat, lon: consulta.lon } : null
+    // SESSAO-57: só o bairro/a cidade do endereço digitado — gravado como NÃO achado
+    // (com o ponto do lugar, para registro), nunca como a rua
+    const lugar = consulta.tipo === 'aproximado' ? consulta.lugar : null
+    if (lugar) motivos.push(`so_${lugar.nivel}`)
 
     // O ponto marcado à mão por alguém no meio do caminho nunca é sobrescrito.
     const { data: agora } = await servidor
@@ -296,11 +345,18 @@ Deno.serve(async (req) => {
     const linha = {
       chave: item.chave,
       endereco: item.endereco,
-      latitude: ponto?.lat ?? null,
-      longitude: ponto?.lon ?? null,
+      latitude: ponto?.lat ?? lugar?.lat ?? null,
+      longitude: ponto?.lon ?? lugar?.lon ?? null,
       resolvido: ponto !== null,
       // o "não achei" leva o nome do buscador principal (a coluna diz quem procurou)
-      fonte: consulta.tipo === 'ok' ? consulta.fonte : CHAVE_GEOAPIFY ? 'geoapify' : 'photon',
+      fonte:
+        consulta.tipo === 'ok'
+          ? consulta.fonte
+          : lugar
+            ? `aprox_${lugar.nivel}`
+            : CHAVE_GEOAPIFY
+              ? 'geoapify'
+              : 'photon',
       consultado_em: new Date().toISOString(),
     }
     await servidor.from('plt_geocache').upsert(linha, { onConflict: 'chave' })
@@ -309,6 +365,7 @@ Deno.serve(async (req) => {
       latitude: linha.latitude,
       longitude: linha.longitude,
       resolvido: linha.resolvido,
+      ...(lugar ? { aproximado: lugar.nivel, lugar: lugar.nome } : {}),
     })
   }
 
