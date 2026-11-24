@@ -69,3 +69,31 @@ Site local (porta 5187) contra o banco de produção, usuário de teste. A funç
 ## Bateria final
 
 - Build limpo. Bateria completa: 803 de 804 — a única falha foi por tempo esgotado numa janela do quadro que esta sessão não tocou (a do card no PCP); rodada isolada junto com os testes de tela novos, passa (13 de 13). Instabilidade da máquina carregada, a mesma da 56.
+
+## Validação dos endereços um por um, no site publicado (24/11, ~03:00 Brasília — pedido do dono)
+
+Pedido do dono: *"realize testes no navegador para validar se os endereços estão indo corretamente para o local correto, valide um por um usando a api nova de pesquisa de endereço"*. Site publicado (sistema-domoby.vercel.app), logado como o dono, função `geocodificar` versão 15 no ar.
+
+**Como foi feito (nada de pedido alterado):** os 30 pedidos de "Sem programação" + os 6 programados de 23–24/11 (34 endereços distintos). Para cada um: (1) o ponto gravado em `plt_geocache` (leitura); (2) a função nova chamada pelo navegador, com a sessão do dono, com o endereço do pedido e chave `avulsa:` (só registro — essas chaves não são lidas pela função desde a 57; ficaram 34 linhas `avulsa:` no cache); (3) `{ conferir: { cep } }` na função; (4) o ponto do CEP consultado daqui do PC no mesmo serviço de CEP (só o CEP), para ter a referência independente.
+
+**Achados:**
+1. **O serviço de CEP responde HTTP 429 à função** (registro: 5 de 5 já às 03:xx UTC, antes do teste; 61 de 62 durante). Efeito: o degrau do CEP nunca funciona → rua que a Geoapify não acha cai direto no **centro da cidade**; e a conferência "pino longe do CEP" (frente 2 da 57) **nunca pergunta** (sempre `conferir: null`). Do PC o mesmo serviço responde normal → é limite por servidor, como o Photon/Nominatim.
+2. **A busca nova acha a rua em 18 de 34; 16 caem no centro da cidade** (Natal -5.805398,-35.2080905 / Parnamirim -5.9153334,-35.2679913). Vários deles têm ponto de rua bom gravado antes pelo Photon (13177, 13888, 13925, 13960 — 0,0 a 0,6 km do CEP): **pedido novo parecido hoje cairia no centro**.
+3. **Os pontos gravados de rua estão certos:** todos os `geoapify`/`photon`/`manual` ficaram a ≤ 0,7 km do ponto do CEP, menos 13984 (Av. Abel Cabral, 1,1 km — avenida longa, plausível). Os 6 programados: 13959, 13960, 13961, 13962, 13976 a ≤ 0,1 km; 13840 está exatamente no ponto do CEP, mas o CEP é da Rua São José, não da José de Souza Cruz (confirmar com o cliente, como a 57 já dizia).
+4. **8 pedidos sem programação estão no centro da cidade** (`aprox_cidade`): 13964 (6,2 km do CEP), 13971 (6,4), 13969 (5,6), 13957 (3,7), 13979 (2,2), 13975 (1,1), 13977 (Extremoz, CEP geral) e 13952 (área rural de Macaíba, 0,3 — aceitável).
+5. **A aba Programar não avisa desses 8:** `plt_fn_programacao_candidatos` (a lista "Sem programação", recriada na SESSAO-50) **não devolve `geo_aproximado`, `geo_manual` nem `cep`** — o cartão mostra "Acertar o ponto no mapa" como se o ponto fosse de rua (print do 13964 na conversa), e a nova tentativa de 7 dias do ponto da cidade (`precisaGeocodificar`) não dispara nessa aba. Em "Já programadas" (`plt_fn_programadas`) o aviso existe.
+
+**Nada foi corrigido** — fica para o dono decidir: (a) a lista "Sem programação" passar a mandar o aviso de ponto aproximado (atualização do banco pequena); (b) o degrau do CEP com outro serviço (ViaCEP não dá ponto; BrasilAPI v2 dá ponto às vezes) ou a busca do CEP pela própria Geoapify (`postcode` + cidade); (c) acertar os 8 pinos na tela.
+
+- L5 — Serviço gratuito chamado do servidor corta por limite sem aviso **também no degrau de apoio** (CEP): a falha visível da 56 cobre só o buscador principal; o degrau que falha em silêncio rebaixa o resultado para "centro da cidade" sem ninguém saber.
+- L6 — Toda lista que mostra cartão de pedido precisa trazer os mesmos campos do cartão (aqui `geo_aproximado`): duas portas para o mesmo cartão divergem quando uma é recriada e a outra não.
+
+## Ajuste de 24/11 — a aba Programar sabe que o ponto é aproximado (resposta do dono: "Sim, corrija")
+
+- **Branch:** `ajuste-pino-aproximado-programar` (criada a partir da main local; o cofre modificado e não commitado de antes ficou como estava).
+- **Migration (escrita, NÃO aplicada):** `supabase/migrations/20261124130000_plt_candidatos_ponto_aproximado.sql` — recria `plt_fn_programacao_candidatos` por **extração** da versão vigente (`20261112060000_plt_editar_endereco.sql:1392-1594`, conferida igual à do banco vivo pelo `pg_get_functiondef`) e acrescenta: `ee.cep` na base e, em cada item, `cep`, `geo_manual` (`fonte = 'manual'`) e `geo_aproximado` (o que vem depois de `aprox_`) — a mesma regra de `plt_fn_programadas`. `create or replace`: assinatura e grants iguais (revoke anon / grant authenticated da `20261027080000`). Sem tabela, índice, leitura nova ou mudança no site (o tipo `PedidoProgramacao` já tinha os três campos opcionais e o `listarCandidatos` repassa o JSON).
+- **Efeito esperado depois de aplicar:** o cartão da aba Programar mostra o aviso âmbar "ponto aproximado · Ajustar o pino" nos 8 pedidos do centro da cidade; "Ajustar o pino" confere o pino contra o CEP; a nova tentativa de 7 dias do ponto da cidade passa a valer nessa aba. "N pedidos com o pino a conferir" continua contando só os programados (a 57 decidiu assim).
+- **Teste novo na bateria do banco** (`supabase/testes/testar-migrations.mjs`, bloco "Ajuste 24/11", escopo próprio, em transação desfeita): o mesmo pedido com o cache `aprox_cidade` → `geo_aproximado = 'cidade'`; `manual` → `geo_manual = true`; `geoapify` → nenhum dos dois; o `cep` = o da visão de endereço; a porta segue só para quem tem login.
+- **Armadilha para a frente da SESSAO-53 (ainda não aplicada):** ela recria esta mesma porta a partir da `20261112060000` — ao entrar, precisa levar as três chaves junto, ou o aviso some de novo (anotado também no cabeçalho da migration).
+- L7 — Antes de recriar uma porta por extração, conferir **todas** as frentes abertas que recriam a mesma porta (`grep` nas worktrees do Escritório): a última a aplicar ganha, e a outra perde o que acrescentou em silêncio.
+- **Bateria do banco (`npm run test:banco`, 24/11):** o bloco novo **3 de 3 verdes**; 1 vermelho que já existia antes (anotado no diário da SESSAO-56): "Dashboard: as 7 portas novas = as antigas em 8 períodos" — Comercial, nada a ver com esta porta.

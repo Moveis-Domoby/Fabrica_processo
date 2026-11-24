@@ -102,3 +102,17 @@ Site local contra o banco de produção, usuário de teste. Prints em `C:\Users\
 | "Ajustar o pino" sem mover | ⚪ só pelos testes (sem pedido aproximado na lista; salvar em pedido real é proibido) | — |
 
 Nada foi gravado: a parada de teste ficou só na montagem e foi cancelada.
+
+## 10. Validação dos endereços um por um, no site publicado (24/11, ~03:00 Brasília)
+
+Detalhe no diário [[SESSAO-57]] (seção "Validação dos endereços um por um"). Resumo:
+
+| | Resultado |
+|---|---|
+| Pontos de rua já gravados (Geoapify, Photon, à mão) | ✅ todos a ≤ 0,7 km do CEP (13984 a 1,1 km, avenida longa) |
+| Rota de 24/11 (6 pedidos) | ✅ todos no lugar; 13840 no ponto do CEP, mas o CEP é de outra rua — confirmar com o cliente |
+| Busca nova em 34 endereços | ⚠️ acha a rua em 18; 16 vão para o centro da cidade |
+| Serviço de CEP | ❌ recusa a função por excesso (HTTP 429) — o degrau do CEP e a conferência "pino longe do CEP" não funcionam |
+| Aba Programar | ❌ 8 pedidos no centro da cidade sem o aviso de "ajustar o pino" (a lista não manda o campo do aviso) — 13964, 13971, 13969, 13957, 13979, 13975, 13977, 13952 |
+
+Nada foi corrigido nem alterado (ficaram só 34 linhas de registro da busca digitada no cache). Decisões com o dono: o aviso na aba Programar, outro caminho para o ponto do CEP, e acertar os 8 pinos.

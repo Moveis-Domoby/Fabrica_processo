@@ -26196,6 +26196,55 @@ try {
 }
 } // fim do bloco SESSAO-56 (ajustes) · item 2
 
+// ============================================================================
+// Ajuste de 24/11 (migration 20261124130000 — validação dos endereços da
+// SESSAO-57, "Sim, corrija"): a aba "Programar" sabe que o ponto é aproximado.
+// A porta dos sem programação passa a devolver cep, geo_manual e geo_aproximado
+// com a mesma regra de "Já programadas" — sem isso o cartão não avisava.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('Ajuste 24/11 · a aba Programar traz o ponto aproximado, o ponto à mão e o CEP')
+
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261124130000_plt_candidatos_ponto_aproximado.sql'), 'utf8'))
+const umP = async (sql) => (await bd.query(sql)).rows[0]
+const comoP = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const candidatos = async () => {
+  await comoP(E40.logistica)
+  const r = (await umP(`select public.plt_fn_programacao_candidatos(null, null, null, null, null, 'numero', 200) as c`)).c
+  await comoP('')
+  return r.itens
+}
+await bd.exec('begin')
+try {
+  const antes = await candidatos()
+  const alvo = antes.find((i) => i.geo_chave)
+  conferir(!!alvo, 'há um pedido sem programação com endereço para o teste', JSON.stringify(antes.length))
+  const cepVisao = (await umP(`select cep from plt_privado.vw_endereco_entrega where pedido_id = ${alvo.pedido_id}`))?.cep ?? null
+  const gravar = (fonte) => bd.exec(`
+    insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte)
+      values ('${alvo.geo_chave}', 'teste', -5.805398, -35.2080905, true, '${fonte}')
+    on conflict (chave) do update set fonte = excluded.fonte, latitude = excluded.latitude, longitude = excluded.longitude, resolvido = true`)
+  const doAlvo = async () => (await candidatos()).find((i) => i.card_id === alvo.card_id)
+  await gravar('aprox_cidade')
+  const aprox = await doAlvo()
+  await gravar('manual')
+  const mao = await doAlvo()
+  await gravar('geoapify')
+  const rua = await doAlvo()
+  conferir(aprox?.geo_aproximado === 'cidade' && aprox.geo_manual === false && aprox.latitude === -5.805398
+      && mao?.geo_manual === true && mao.geo_aproximado === null
+      && rua?.geo_manual === false && rua.geo_aproximado === null
+      && 'cep' in aprox && aprox.cep === cepVisao,
+    'o ponto do centro da cidade chega à aba Programar como aproximado (o cartão avisa "Ajustar o pino"); o marcado à mão e o de rua não; o CEP vem junto (para conferir o pino)',
+    JSON.stringify({ aprox: aprox && { a: aprox.geo_aproximado, m: aprox.geo_manual, cep: aprox.cep }, mao: mao && [mao.geo_aproximado, mao.geo_manual], rua: rua && [rua.geo_aproximado, rua.geo_manual], cepVisao }))
+  const priv = await umP(`select has_function_privilege('anon', 'public.plt_fn_programacao_candidatos(text, text, text, text, text, text, integer)', 'execute') as anon,
+                                 has_function_privilege('authenticated', 'public.plt_fn_programacao_candidatos(text, text, text, text, text, text, integer)', 'execute') as logado`)
+  conferir(!priv.anon && priv.logado, 'a porta continua só para quem tem login', JSON.stringify(priv))
+} finally {
+  await bd.exec('rollback')
+}
+} // fim do bloco Ajuste 24/11
+
 
 
 
