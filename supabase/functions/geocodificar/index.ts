@@ -36,37 +36,39 @@
 // Quem chama precisa ser pessoa ativa da plataforma (JWT do Supabase).
 // Sem ponto: resolvido=false com a data (não insiste por 7 dias). Serviço que
 // RECUSA ou falha não é "sem ponto": nada gravado, `tentar_depois` (D-112).
+//
+// ↪️ SESSAO-56 (23/11/2026 — "o mapa não está marcando os endereços"): o Photon
+// passou a recusar este servidor em 19/11 (o Nominatim já recusava desde 03/10)
+// e nenhum endereço novo ganhava ponto. O buscador principal agora é a
+// GEOAPIFY, com chave própria da Domoby (escolha do dono; o segredo
+// PLT_GEOAPIFY_CHAVE — nunca no código); o Photon fica de reserva e o
+// Nominatim saiu. A ordem e os degraus moram em `fluxo.ts` (testado); aqui só
+// a rede, o cache e o ESTADO da busca: quando nenhum buscador responde, a
+// resposta leva `tentar_depois` nos itens e `busca.fora_desde` (a tela avisa
+// e mostra a faixa "a busca de endereço está fora desde…") — a hora da queda
+// fica numa linha reservada do próprio cache (sem tabela nova), gravada só
+// nas viradas.
+//
+//   → { resultados: [...], busca: { fora_desde: <ISO> | null } }
 // ============================================================================
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import {
-  caixaDoEstado,
-  candidatosNominatim,
-  candidatosPhoton,
-  consultaBairro,
-  consultaCidade,
-  consultasTexto,
-  escolher,
-  escolherLugar,
-  escolherPerto,
-  nomeDoEstado,
-  partirEndereco,
-  pontoDoCep,
-  semRepetidos,
-} from './busca.ts'
-import type { Candidato, EnderecoPartido, PontoDoCep } from './busca.ts'
+import { procurarEndereco, proximoEstado } from './fluxo.ts'
+import type { Ambiente, Consulta, EstadoDaBusca } from './fluxo.ts'
 
 const URL_SUPABASE = Deno.env.get('SUPABASE_URL')!
 const CHAVE_SERVICO = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-// Identificação pedida pela política de uso do Nominatim. O contato (e-mail
-// ou site) é opcional e vive como segredo de ambiente — nunca no código.
+// Identificação de quem chama (boa prática dos serviços abertos — o Photon e o
+// serviço de CEP). O contato (e-mail ou site) é opcional e vive como segredo
+// de ambiente — nunca no código.
 const CONTATO = Deno.env.get('PLT_GEOCODIFICACAO_CONTATO') ?? ''
 const USER_AGENT = `PlataformaProducaoDomoby/1.0${CONTATO ? ` (${CONTATO})` : ''}`
+/** SESSAO-56: a chave da Geoapify — segredo das Edge Functions, posto pelo dono. */
+const CHAVE_GEOAPIFY = (Deno.env.get('PLT_GEOAPIFY_CHAVE') ?? '').trim() || null
 
-const NOMINATIM = 'https://nominatim.openstreetmap.org/search'
-const PHOTON = 'https://photon.komoot.io/api/'
-/** O serviço de CEP gratuito (sem chave) que devolve o ponto do CEP. */
-const SERVICO_CEP = 'https://cep.awesomeapi.com.br/json/'
-const INTERVALO_MS = 1100
+/** A Geoapify aceita até 5 consultas por segundo: uma pausa curta entre duas (a de 1,1 s era do Nominatim). */
+const INTERVALO_MS = 250
+/** Tempo limite de cada consulta a um buscador. */
+const TEMPO_LIMITE_MS = 6_000
 const MAXIMO_POR_CHAMADA = 5
 const RETENTAR_FALHA_APOS_DIAS = 7
 /**
@@ -81,9 +83,12 @@ const VERSAO_BUSCA = Date.parse('2026-11-05T00:00:00Z')
  * tela (src/rotas/api.ts → VERSAO_DEGRAUS).
  */
 const VERSAO_DEGRAUS = Date.parse('2026-11-05T03:00:00Z')
-/** O Nominatim recusou: não insiste por 1 hora (cada recusa custava 1,1 s por endereço). */
-const PAUSA_NOMINATIM_MS = 60 * 60 * 1000
-let nominatimRecusouEm = 0
+/**
+ * SESSAO-56 (frente 3): a linha reservada do cache que guarda desde quando a
+ * busca está sem responder (em `rota`, o campo de dados livres da tabela) —
+ * nenhuma chave de endereço ou de rota tem este formato.
+ */
+const CHAVE_ESTADO = 'estado:busca-de-endereco'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -140,198 +145,32 @@ interface LinhaCache {
   resolvido: boolean
   fonte: string
   consultado_em: string
+  /** Só a linha do estado da busca usa (as de rota não passam por aqui). */
+  rota?: unknown
 }
 
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** Uma consulta HTTP com tempo limite; erro de rede/HTTP vira `null` + o motivo. */
+/**
+ * Uma consulta HTTP com tempo limite; erro de rede/HTTP vira o motivo — SEM a
+ * URL (a da Geoapify leva a chave) e sem o endereço (dado pessoal).
+ */
 async function buscarJson(url: URL, cabecalhos: Record<string, string>): Promise<{ corpo: unknown } | { erro: string }> {
   let r: Response
   try {
-    r = await fetch(url, { headers: cabecalhos, signal: AbortSignal.timeout(10_000) })
+    r = await fetch(url, { headers: cabecalhos, signal: AbortSignal.timeout(TEMPO_LIMITE_MS) })
   } catch (e) {
     return { erro: e instanceof Error ? e.name : 'falha de rede' }
   }
-  if (!r.ok) return { erro: `HTTP ${r.status}` }
+  if (!r.ok) {
+    await r.body?.cancel().catch(() => undefined)
+    return { erro: `HTTP ${r.status}` }
+  }
   try {
     return { corpo: await r.json() }
   } catch {
     return { erro: 'resposta ilegível' }
   }
-}
-
-/** Os candidatos do Nominatim — a busca ESTRUTURADA (rua, cidade, estado). */
-async function pelosNominatim(e: EnderecoPartido): Promise<{ lista: Candidato[] } | { erro: string }> {
-  const url = new URL(NOMINATIM)
-  url.searchParams.set('format', 'jsonv2')
-  url.searchParams.set('limit', '8')
-  url.searchParams.set('countrycodes', 'br')
-  url.searchParams.set('addressdetails', '1')
-  if (e.livre || !e.rua) {
-    url.searchParams.set('q', e.texto)
-  } else {
-    url.searchParams.set('street', [e.numero, e.rua].filter(Boolean).join(' '))
-    if (e.cidade) url.searchParams.set('city', e.cidade)
-    const estado = nomeDoEstado(e.uf)
-    if (estado) url.searchParams.set('state', estado)
-    url.searchParams.set('country', 'Brasil')
-  }
-  const r = await buscarJson(url, { 'User-Agent': USER_AGENT, 'Accept-Language': 'pt-BR' })
-  if ('erro' in r) return { erro: `Nominatim ${r.erro}` }
-  return { lista: candidatosNominatim(r.corpo) }
-}
-
-/**
- * Os candidatos do Photon para uma consulta de texto (casa e rua — ou, nos
- * degraus, as camadas de lugar: bairro e cidade; no RN, só dentro do RN).
- */
-async function peloPhoton(
-  consulta: string,
-  uf: string | null,
-  livre: boolean,
-  camadas: string[] = ['house', 'street'],
-): Promise<{ lista: Candidato[] } | { erro: string }> {
-  const url = new URL(PHOTON)
-  url.searchParams.set('q', consulta)
-  url.searchParams.set('limit', livre ? '5' : '10')
-  url.searchParams.set('lat', '-5.8')
-  url.searchParams.set('lon', '-35.2')
-  // o endereço digitado vem do galpão — a busca fica no RN; o do cadastro, no estado dele
-  const caixa = caixaDoEstado(livre ? 'RN' : uf)
-  if (caixa) url.searchParams.set('bbox', caixa)
-  if (!livre) {
-    for (const camada of camadas) url.searchParams.append('layer', camada)
-  }
-  const r = await buscarJson(url, { 'User-Agent': USER_AGENT })
-  if ('erro' in r) return { erro: `Photon ${r.erro}` }
-  return { lista: candidatosPhoton(r.corpo) }
-}
-
-/** De onde veio o ponto: a rua (pelo buscador ou pelo CEP da própria rua) ou a cidade (aproximado, com aviso). */
-type Fonte = 'nominatim' | 'photon' | 'cep' | 'aprox_cidade'
-
-type Consulta =
-  | { tipo: 'ok'; lat: number; lon: number; fonte: Fonte }
-  | { tipo: 'vazio'; motivo: string }
-  | { tipo: 'erro'; motivo: string }
-
-/** O ponto do CEP pelo serviço de CEP (recusa/limite = sem degrau do CEP, nunca erro). */
-async function peloCep(e: EnderecoPartido, recusas: string[]): Promise<PontoDoCep | null> {
-  if (!e.cep) return null
-  const r = await buscarJson(new URL(SERVICO_CEP + e.cep), { 'User-Agent': USER_AGENT })
-  if ('erro' in r) {
-    if (r.erro !== 'HTTP 404') recusas.push(`CEP ${r.erro}`)
-    return null
-  }
-  return pontoDoCep(e, r.corpo)
-}
-
-/**
- * A rua não foi achada (ou ficou ambígua). O ponto do CEP e o centro do bairro
- * servem só de ÂNCORA: a rua com o nome do pedido perto deles é a certa (ponto
- * de rua); o ponto do CEP da PRÓPRIA rua do pedido também é ponto de rua. Sem
- * rua: o centro da CIDADE, aproximado (o cartão avisa para ajustar o pino) —
- * nunca o centro do bairro (correção do dono, 05/11). Só o buscador falhando
- * (nada respondeu) é "tentar depois"; nada gravado.
- */
-async function degraus(
-  e: EnderecoPartido,
-  candidatos: Candidato[],
-  recusas: string[],
-  pausa: () => Promise<void>,
-): Promise<Consulta> {
-  const cep = await peloCep(e, recusas)
-  if (cep && !cep.geral) {
-    const rua = escolherPerto(e, candidatos, { lat: cep.lat, lon: cep.lon, degrau: 'cep' })
-    if (rua) return { tipo: 'ok', lat: rua.lat, lon: rua.lon, fonte: rua.fonte }
-    if (cep.ruaBate) return { tipo: 'ok', lat: cep.lat, lon: cep.lon, fonte: 'cep' }
-  }
-
-  // o bairro só ajuda se o buscador trouxe alguma rua com o nome do pedido
-  const qBairro = candidatos.length > 0 ? consultaBairro(e) : null
-  if (qBairro) {
-    await pausa()
-    const r = await peloPhoton(qBairro, e.uf, false, ['district', 'locality'])
-    if ('erro' in r) {
-      recusas.push(r.erro)
-      return { tipo: 'erro', motivo: r.erro }
-    }
-    const bairro = escolherLugar(e, r.lista, 'bairro')
-    if (bairro) {
-      const rua = escolherPerto(e, candidatos, { ...bairro, degrau: 'bairro' })
-      if (rua) return { tipo: 'ok', lat: rua.lat, lon: rua.lon, fonte: rua.fonte }
-    }
-  }
-
-  // o CEP geral da cidade (…000) já é o centro dela
-  if (cep?.geral) return { tipo: 'ok', lat: cep.lat, lon: cep.lon, fonte: 'aprox_cidade' }
-  const qCidade = consultaCidade(e)
-  if (qCidade) {
-    await pausa()
-    const r = await peloPhoton(qCidade, e.uf, false, ['city'])
-    if ('erro' in r) {
-      recusas.push(r.erro)
-      return { tipo: 'erro', motivo: r.erro }
-    }
-    const cidade = escolherLugar(e, r.lista, 'cidade')
-    if (cidade) return { tipo: 'ok', lat: cidade.lat, lon: cidade.lon, fonte: 'aprox_cidade' }
-  }
-  return { tipo: 'vazio', motivo: 'sem_cidade' }
-}
-
-/**
- * Junta os candidatos dos dois buscadores e escolhe (busca.ts). Erro dos DOIS
- * (nada respondeu) = "tentar depois"; resposta vazia = "não achei".
- */
-async function geocodificar(endereco: string, recusas: string[]): Promise<Consulta> {
-  const e = partirEndereco(endereco)
-  const candidatos: Candidato[] = []
-  let respondeu = false
-  let primeira = true
-  const pausa = async () => {
-    if (!primeira) await dormir(INTERVALO_MS)
-    primeira = false
-  }
-
-  if (Date.now() - nominatimRecusouEm > PAUSA_NOMINATIM_MS) {
-    await pausa()
-    const r = await pelosNominatim(e)
-    if ('erro' in r) {
-      nominatimRecusouEm = Date.now()
-      recusas.push(r.erro)
-    } else {
-      respondeu = true
-      candidatos.push(...r.lista)
-    }
-  }
-
-  // O Photon sempre (o Nominatim acha a rua; o Photon traz o bairro de cada trecho).
-  const consultas = consultasTexto(e)
-  for (const [i, q] of consultas.entries()) {
-    await pausa()
-    const r = await peloPhoton(q, e.uf, e.livre)
-    if ('erro' in r) {
-      recusas.push(r.erro)
-      break // buscador recusando: não insiste nas outras formas
-    }
-    respondeu = true
-    candidatos.push(...r.lista)
-    // a 1ª consulta já trouxe o bairro ou o CEP certos: não precisa das outras
-    const parcial = escolher(e, semRepetidos(candidatos))
-    if (i === 0 && parcial.motivo === 'ok' && !e.livre && e.bairro === null) break
-  }
-
-  if (!respondeu) return { tipo: 'erro', motivo: recusas.join(', ') || 'sem resposta' }
-  const unicos = semRepetidos(candidatos)
-  const escolha = escolher(e, unicos)
-  if (!escolha.ponto) {
-    // o endereço digitado à mão: a pessoa marca o pino na própria janela
-    if (e.livre) return { tipo: 'vazio', motivo: escolha.motivo }
-    const degrau = await degraus(e, unicos, recusas, pausa)
-    return degrau.tipo === 'vazio' ? { tipo: 'vazio', motivo: `${escolha.motivo}+${degrau.motivo}` } : degrau
-  }
-  const fonte = candidatos.find((c) => c.lat === escolha.ponto!.lat && c.lon === escolha.ponto!.lon)?.fonte ?? 'photon'
-  return { tipo: 'ok', lat: escolha.ponto.lat, lon: escolha.ponto.lon, fonte }
 }
 
 /** O que o cache já sabe vale — menos o que a busca antiga gravou (refeito uma vez). */
@@ -365,25 +204,37 @@ Deno.serve(async (req) => {
     return erro(400, 'Corpo inválido — envie { itens: [{ chave, endereco }] }.')
   }
   const itens = (corpo.itens ?? [])
-    .filter((i) => i && typeof i.chave === 'string' && typeof i.endereco === 'string' && i.endereco.trim())
+    // a chave reservada do estado da busca nunca é um endereço
+    .filter((i) => i && typeof i.chave === 'string' && typeof i.endereco === 'string' && i.endereco.trim() && i.chave !== CHAVE_ESTADO)
     .slice(0, MAXIMO_POR_CHAMADA)
   if (itens.length === 0) return resposta(200, { resultados: [] })
 
   const { data: cacheados } = await servidor
     .from('plt_geocache')
-    .select('chave, latitude, longitude, resolvido, fonte, consultado_em')
-    .in(
-      'chave',
-      itens.map((i) => i.chave),
-    )
+    .select('chave, latitude, longitude, resolvido, fonte, consultado_em, rota')
+    .in('chave', [...itens.map((i) => i.chave), CHAVE_ESTADO])
   const cache = new Map<string, LinhaCache>()
   for (const linha of (cacheados ?? []) as LinhaCache[]) cache.set(linha.chave, linha)
+  // o estado da busca vem na MESMA leitura do cache (nenhuma consulta a mais)
+  const estadoAntes = (cache.get(CHAVE_ESTADO)?.rota ?? null) as EstadoDaBusca | null
+  cache.delete(CHAVE_ESTADO)
 
   const resultados: Resultado[] = []
-  const recusas: string[] = []
   const motivos: string[] = []
   const aproximados: string[] = []
+  const ambiente: Ambiente = {
+    buscar: buscarJson,
+    esperar: () => dormir(INTERVALO_MS),
+    chaveGeoapify: CHAVE_GEOAPIFY,
+    userAgent: USER_AGENT,
+    recusas: [],
+    geoapifyRecusou: false,
+  }
+  const recusas = ambiente.recusas
   let consultou = false
+  // nenhum buscador respondeu a um endereço: os seguintes nem tentam (a tela avisa e oferece tentar de novo)
+  let semResposta = false
+  let respondeu = false
   for (const item of itens) {
     const guardado = cache.get(item.chave)
     if (guardado && cacheVale(guardado, item.chave)) {
@@ -396,20 +247,27 @@ Deno.serve(async (req) => {
       continue
     }
 
+    if (semResposta) {
+      resultados.push({ chave: item.chave, latitude: null, longitude: null, resolvido: false, tentar_depois: true })
+      continue
+    }
     if (consultou) await dormir(INTERVALO_MS)
     consultou = true
     let consulta: Consulta
     try {
-      consulta = await geocodificar(item.endereco, recusas)
+      consulta = await procurarEndereco(item.endereco, ambiente)
     } catch (e) {
-      consulta = { tipo: 'erro', motivo: e instanceof Error ? e.message : 'falha' }
+      // o nome do erro, nunca a mensagem (ela pode trazer a URL com a chave)
+      consulta = { tipo: 'erro', motivo: e instanceof Error ? e.name : 'falha' }
       recusas.push(consulta.motivo)
     }
     if (consulta.tipo === 'erro') {
-      // Os dois buscadores recusaram/falharam: nada gravado — a tela tenta depois.
+      // Nenhum buscador respondeu: nada gravado — a tela avisa e oferece tentar de novo.
+      semResposta = true
       resultados.push({ chave: item.chave, latitude: null, longitude: null, resolvido: false, tentar_depois: true })
       continue
     }
+    respondeu = true
     if (consulta.tipo === 'vazio') motivos.push(consulta.motivo)
     if (consulta.tipo === 'ok' && consulta.fonte.startsWith('aprox_')) aproximados.push(consulta.fonte.slice(6))
     const ponto = consulta.tipo === 'ok' ? { lat: consulta.lat, lon: consulta.lon } : null
@@ -437,7 +295,8 @@ Deno.serve(async (req) => {
       latitude: ponto?.lat ?? null,
       longitude: ponto?.lon ?? null,
       resolvido: ponto !== null,
-      fonte: consulta.tipo === 'ok' ? consulta.fonte : 'photon',
+      // o "não achei" leva o nome do buscador principal (a coluna diz quem procurou)
+      fonte: consulta.tipo === 'ok' ? consulta.fonte : CHAVE_GEOAPIFY ? 'geoapify' : 'photon',
       consultado_em: new Date().toISOString(),
     }
     await servidor.from('plt_geocache').upsert(linha, { onConflict: 'chave' })
@@ -458,5 +317,25 @@ Deno.serve(async (req) => {
         (motivos.length ? ` — sem ponto: ${motivos.join(', ')}` : ''),
     )
   }
-  return resposta(200, { resultados })
+
+  // O estado da busca: gravado só nas VIRADAS (caiu / voltou) — enquanto tudo
+  // vai bem (ou segue fora), nenhuma escrita a mais.
+  const agora = new Date().toISOString()
+  const { estado, mudou } = proximoEstado(estadoAntes, { falhou: semResposta, respondeu }, agora)
+  if (mudou) {
+    await servidor.from('plt_geocache').upsert(
+      {
+        chave: CHAVE_ESTADO,
+        endereco: '(estado da busca de endereço — não é um endereço)',
+        latitude: null,
+        longitude: null,
+        resolvido: false,
+        fonte: 'estado',
+        consultado_em: agora,
+        rota: estado,
+      },
+      { onConflict: 'chave' },
+    )
+  }
+  return resposta(200, { resultados, busca: estado })
 })
