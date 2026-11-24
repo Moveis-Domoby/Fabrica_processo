@@ -48,11 +48,15 @@
 // e mostra a faixa "a busca de endereço está fora desde…") — a hora da queda
 // fica numa linha reservada do próprio cache (sem tabela nova), gravada só
 // nas viradas.
+// ↪️ SESSAO-56 (ajustes — resposta do dono, 23/11): a chamada que encontra a
+// busca fora há 1 hora ou mais, e a queda ainda não avisada, pede ao banco o
+// aviso no sino (admin e logística — `plt_fn_busca_fora_avisar`, que confere
+// de novo com a linha travada e marca `avisado`). Uma vez por queda; sem relógio.
 //
-//   → { resultados: [...], busca: { fora_desde: <ISO> | null } }
+//   → { resultados: [...], busca: { fora_desde: <ISO> | null, avisado } }
 // ============================================================================
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { procurarEndereco, proximoEstado } from './fluxo.ts'
+import { deveAvisarFora, procurarEndereco, proximoEstado } from './fluxo.ts'
 import type { Ambiente, Consulta, EstadoDaBusca } from './fluxo.ts'
 
 const URL_SUPABASE = Deno.env.get('SUPABASE_URL')!
@@ -336,6 +340,13 @@ Deno.serve(async (req) => {
       },
       { onConflict: 'chave' },
     )
+  }
+  // SESSAO-56 (ajustes): fora há 1 hora ou mais e ainda não avisado → o aviso no
+  // sino, uma vez por queda (o banco confere e marca; falhou → a próxima tenta)
+  if (deveAvisarFora(estado, agora)) {
+    const { data: avisou, error: falhaAviso } = await servidor.rpc('plt_fn_busca_fora_avisar')
+    if (falhaAviso) console.warn(`geocodificar: o aviso de busca fora não foi gravado (${falhaAviso.code ?? 'erro'})`)
+    else if (avisou === true) estado.avisado = true
   }
   return resposta(200, { resultados, busca: estado })
 })

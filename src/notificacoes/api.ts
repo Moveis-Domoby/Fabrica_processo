@@ -50,6 +50,9 @@ export function destinoDoAviso(
   // no Estoque (a casa das decisões da logística), a janela "Para onde vai este móvel?".
   if (aviso.tipo === 'pedido_cancelado_decidir' && aviso.card_id !== null)
     return `/fabrica/logistica/estoque?destino=${aviso.card_id}`
+  // SESSAO-56 (ajustes — resposta do dono, 23/11): a busca de endereço fora há
+  // 1 hora ou mais abre Rotas (é lá que se marca o ponto à mão).
+  if (aviso.tipo === 'busca_endereco_fora') return '/fabrica/rotas/programacao'
   // SESSAO-31 (§3): responsável e menção abrem a janela do card, ali mesmo.
   // SESSAO-42: "Móvel pulou a montagem" (saiu do setor sem ninguém iniciar) também.
   if (

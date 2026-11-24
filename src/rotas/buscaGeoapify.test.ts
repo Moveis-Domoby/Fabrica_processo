@@ -8,7 +8,7 @@ import {
   escolherLugar,
   partirEndereco,
 } from '../../supabase/functions/geocodificar/busca'
-import { procurarEndereco, proximoEstado } from '../../supabase/functions/geocodificar/fluxo'
+import { deveAvisarFora, procurarEndereco, proximoEstado } from '../../supabase/functions/geocodificar/fluxo'
 import type { Ambiente, RespostaDaRede } from '../../supabase/functions/geocodificar/fluxo'
 
 /**
@@ -289,20 +289,63 @@ describe('procurarEndereco — a ordem dos buscadores', () => {
 describe('proximoEstado — desde quando a busca está fora', () => {
   const AGORA = '2026-11-23T12:00:00.000Z'
   it('a 1ª chamada sem resposta marca o começo da queda (e grava)', () => {
-    expect(proximoEstado(null, { falhou: true, respondeu: false }, AGORA)).toEqual({ estado: { fora_desde: AGORA }, mudou: true })
+    expect(proximoEstado(null, { falhou: true, respondeu: false }, AGORA)).toEqual({
+      estado: { fora_desde: AGORA, avisado: false },
+      mudou: true,
+    })
   })
   it('seguindo fora: o começo não muda e nada se grava', () => {
-    const antes = { fora_desde: '2026-11-19T16:56:00.000Z' }
+    const antes = { fora_desde: '2026-11-19T16:56:00.000Z', avisado: true }
     expect(proximoEstado(antes, { falhou: true, respondeu: false }, AGORA)).toEqual({ estado: antes, mudou: false })
   })
   it('voltou a responder: a queda acaba (grava uma vez)', () => {
     expect(proximoEstado({ fora_desde: '2026-11-19T16:56:00.000Z' }, { falhou: false, respondeu: true }, AGORA)).toEqual({
-      estado: { fora_desde: null },
+      estado: { fora_desde: null, avisado: false },
       mudou: true,
     })
   })
   it('tudo bem e continua bem (ou só veio do cache): nenhuma escrita', () => {
     expect(proximoEstado(null, { falhou: false, respondeu: true }, AGORA).mudou).toBe(false)
     expect(proximoEstado({ fora_desde: null }, { falhou: false, respondeu: false }, AGORA).mudou).toBe(false)
+  })
+})
+
+describe('deveAvisarFora — o aviso no sino com 1 hora de busca fora (uma vez por queda)', () => {
+  const CAIU = '2026-11-23T12:00:00.000Z'
+  const mais = (min: number) => new Date(Date.parse(CAIU) + min * 60_000).toISOString()
+  const falhou = { falhou: true, respondeu: false }
+  const respondeu = { falhou: false, respondeu: true }
+
+  it('recusando há 59 min: não avisa', () => {
+    const { estado } = proximoEstado({ fora_desde: CAIU, avisado: false }, falhou, mais(59))
+    expect(deveAvisarFora(estado, mais(59))).toBe(false)
+  })
+  it('com 61 min avisa uma vez; a 2ª chamada não avisa de novo', () => {
+    const { estado } = proximoEstado({ fora_desde: CAIU, avisado: false }, falhou, mais(61))
+    expect(deveAvisarFora(estado, mais(61))).toBe(true)
+    // o banco marcou o "já avisado" na linha do estado; a chamada seguinte o lê
+    const seguinte = proximoEstado({ ...estado, avisado: true }, falhou, mais(75))
+    expect(seguinte.mudou).toBe(false)
+    expect(deveAvisarFora(seguinte.estado, mais(75))).toBe(false)
+  })
+  it('a chamada que só leu do cache também encontra o estado "fora" e avisa', () => {
+    const { estado } = proximoEstado({ fora_desde: CAIU }, { falhou: false, respondeu: false }, mais(90))
+    expect(deveAvisarFora(estado, mais(90))).toBe(true)
+  })
+  it('voltou e caiu de novo: o "já avisado" zerou e a nova queda avisa outra vez', () => {
+    const voltou = proximoEstado({ fora_desde: CAIU, avisado: true }, respondeu, mais(120))
+    expect(voltou).toEqual({ estado: { fora_desde: null, avisado: false }, mudou: true })
+    expect(deveAvisarFora(voltou.estado, mais(120))).toBe(false)
+    const caiu = proximoEstado(voltou.estado, falhou, mais(180))
+    expect(caiu).toEqual({ estado: { fora_desde: mais(180), avisado: false }, mudou: true })
+    expect(deveAvisarFora(caiu.estado, mais(200))).toBe(false)
+    expect(deveAvisarFora(caiu.estado, mais(241))).toBe(true)
+  })
+})
+
+describe('o aviso de busca fora no sino', () => {
+  it('o toque abre Rotas', async () => {
+    const { destinoDoAviso } = await import('@/notificacoes/api')
+    expect(destinoDoAviso({ tipo: 'busca_endereco_fora', card_id: null })).toBe('/fabrica/rotas/programacao')
   })
 })

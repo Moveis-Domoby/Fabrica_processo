@@ -270,16 +270,24 @@ export async function procurarEndereco(endereco: string, amb: Ambiente): Promise
 // O estado da busca (frente 3 — "ninguém fica 4 dias sem saber")
 // ---------------------------------------------------------------------------
 
-/** Desde quando a busca está sem responder (ISO); `null` = está respondendo. */
+/**
+ * Desde quando a busca está sem responder (ISO); `null` = está respondendo.
+ * SESSAO-56 (ajustes — resposta do dono, 23/11): `avisado` = esta queda já
+ * virou aviso no sino (uma vez por queda); volta a `false` quando a busca volta.
+ */
 export interface EstadoDaBusca {
   fora_desde: string | null
+  avisado?: boolean
 }
+
+/** Depois de quanto tempo fora a busca vira aviso no sino (admin e logística). */
+export const AVISAR_FORA_APOS_MS = 60 * 60 * 1000
 
 /**
  * O estado depois de uma chamada: a que terminou SEM resposta de nenhum
  * buscador marca o começo da queda (se ainda não havia); a que respondeu
- * (achou ou disse "não achei") encerra a queda. `mudou` = precisa gravar —
- * só nas viradas (nenhuma escrita a mais enquanto tudo vai bem).
+ * (achou ou disse "não achei") encerra a queda e zera o "já avisado". `mudou` =
+ * precisa gravar — só nas viradas (nenhuma escrita a mais enquanto tudo vai bem).
  */
 export function proximoEstado(
   atual: EstadoDaBusca | null,
@@ -287,7 +295,26 @@ export function proximoEstado(
   agora: string,
 ): { estado: EstadoDaBusca; mudou: boolean } {
   const antes = atual?.fora_desde ?? null
-  if (chamada.falhou) return { estado: { fora_desde: antes ?? agora }, mudou: antes === null }
-  if (chamada.respondeu) return { estado: { fora_desde: null }, mudou: antes !== null }
-  return { estado: { fora_desde: antes }, mudou: false }
+  const avisado = antes !== null && atual?.avisado === true
+  if (chamada.falhou) {
+    return antes === null
+      ? { estado: { fora_desde: agora, avisado: false }, mudou: true }
+      : { estado: { fora_desde: antes, avisado }, mudou: false }
+  }
+  if (chamada.respondeu) {
+    return { estado: { fora_desde: null, avisado: false }, mudou: antes !== null || atual?.avisado === true }
+  }
+  return { estado: { fora_desde: antes, avisado }, mudou: false }
+}
+
+/**
+ * SESSAO-56 (ajustes): a chamada que encontra a busca fora há 1 hora ou mais,
+ * e a queda ainda não avisada, pede ao banco o aviso no sino — sem relógio: o
+ * aviso nasce da própria chamada. O banco confere de novo (com a linha travada)
+ * e marca o "já avisado": duas chamadas ao mesmo tempo não avisam duas vezes.
+ */
+export function deveAvisarFora(estado: EstadoDaBusca, agora: string): boolean {
+  if (estado.fora_desde === null || estado.avisado === true) return false
+  const fora = Date.parse(agora) - Date.parse(estado.fora_desde)
+  return Number.isFinite(fora) && fora >= AVISAR_FORA_APOS_MS
 }

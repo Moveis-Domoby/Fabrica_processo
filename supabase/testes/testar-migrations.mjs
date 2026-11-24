@@ -26140,6 +26140,61 @@ try {
 }
 } // fim do bloco SESSAO-56 (ajustes) · item 1
 
+{ // escopo próprio (E-70)
+titulo('SESSAO-56 (ajustes) · 2 · o aviso no sino com a busca de endereço fora há 1 hora — uma vez por queda')
+
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261124120000_plt_aviso_busca_fora.sql'), 'utf8'))
+const umB = async (sql) => (await bd.query(sql)).rows[0]
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+await bd.exec('begin')
+try {
+  const estado = (foraHaMin, avisado = false) => bd.exec(`
+    insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte, rota)
+      values ('estado:busca-de-endereco', '(estado da busca de endereço — não é um endereço)', null, null, false, 'estado',
+              jsonb_build_object('fora_desde', ${foraHaMin === null ? 'null' : `to_jsonb(now() - interval '${foraHaMin} minutes')`}, 'avisado', ${avisado}))
+    on conflict (chave) do update set rota = excluded.rota`)
+  const avisos = async () => (await umB(`select count(*)::int as n from public.plt_notificacoes where tipo = 'busca_endereco_fora'`)).n
+  const avisar = async () => (await umB(`select public.plt_fn_busca_fora_avisar() as r`)).r
+  await bd.exec(`delete from public.plt_notificacoes where tipo = 'busca_endereco_fora'`)
+
+  conferir((await avisar()) === false && (await avisos()) === 0, 'sem a linha do estado (a busca nunca caiu): não avisa')
+  await estado(59)
+  conferir((await avisar()) === false && (await avisos()) === 0, 'a busca recusando há 59 min: não avisa')
+  await estado(61)
+  const deu = await avisar()
+  const n1 = await avisos()
+  const quem = await umB(`
+    select bool_and(plt_privado.fn_aviso_publico_de('logistica', n.destinatario_id)) as so_logistica,
+           count(*) filter (where u.papel = 'admin')::int as admins,
+           count(*) filter (where u.papel <> 'admin')::int as outros,
+           min(n.titulo) as titulo, min(n.corpo) as corpo
+      from public.plt_notificacoes n join public.plt_usuarios u on u.id = n.destinatario_id
+     where n.tipo = 'busca_endereco_fora'`)
+  const marcado = await umB(`select (rota ->> 'avisado')::boolean as a from public.plt_geocache where chave = 'estado:busca-de-endereco'`)
+  conferir(deu === true && n1 > 0 && quem.so_logistica && quem.admins > 0 && quem.outros > 0 && marcado.a === true,
+    'com 61 min avisa: admin e logística recebem, e a linha do estado fica marcada "já avisado"', JSON.stringify({ deu, n1, quem: { ...quem, corpo: undefined } }))
+  conferir(/^A busca de endereço está fora desde \d\d\/\d\d às \d\d:\d\d\. Os pontos novos no mapa precisam ser marcados à mão em Editar endereço\.$/.test(quem.corpo)
+      && quem.titulo === 'Busca de endereço fora do ar',
+    'o texto é o do pedido, em português de gente, com o dia e a hora da queda', quem.corpo)
+  conferir((await avisar()) === false && (await avisos()) === n1, 'a 2ª chamada não avisa de novo (uma vez por queda)')
+  // voltou (a função grava fora_desde nulo e avisado falso) e caiu de novo
+  await estado(null)
+  conferir((await avisar()) === false && (await avisos()) === n1, 'a busca voltou: não avisa')
+  await estado(10)
+  conferir((await avisar()) === false, 'caiu de novo há 10 min: ainda não')
+  await estado(65)
+  conferir((await avisar()) === true && (await avisos()) === n1 * 2, 'depois de voltar e cair de novo, a nova queda avisa outra vez')
+  const catalogo = await umB(`select publico, obrigatorio, erro from plt_privado.fn_avisos_catalogo() where tipo = 'busca_endereco_fora'`)
+  const privB = await umB(`
+    select has_function_privilege('service_role', 'public.plt_fn_busca_fora_avisar()', 'execute') as servico,
+           has_function_privilege('authenticated', 'public.plt_fn_busca_fora_avisar()', 'execute')
+           or has_function_privilege('anon', 'public.plt_fn_busca_fora_avisar()', 'execute') as navegador`)
+  conferir(catalogo?.publico === 'logistica' && catalogo.erro === false && privB.servico && !privB.navegador,
+    'o aviso está no catálogo (público logística — dá para desligar em Configurações → Avisos) e a porta é só da função da busca', JSON.stringify({ catalogo, privB }))
+} finally {
+  await bd.exec('rollback')
+}
+} // fim do bloco SESSAO-56 (ajustes) · item 2
 
 
 
