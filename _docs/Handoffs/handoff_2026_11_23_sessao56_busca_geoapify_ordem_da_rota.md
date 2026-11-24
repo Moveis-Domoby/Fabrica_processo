@@ -11,7 +11,9 @@ Demanda: [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · Di�
 
 > ↪️ **AJUSTES DE 23/11 (~23:00 — as respostas do dono):** quem entra numa rota que já existe vai para o lugar mais perto (seção 2b), o aviso no sino com a busca fora há 1 hora (seção 2b), os 2 ajustes da revisão, e o registro do que o dono resolveu (a trava das rotas antigas já FEITA pelo Cowork — seção 4, passo 6). Duas atualizações de banco novas, só em arquivo, que entram logo depois da primeira (seção 4).
 >
-> ⏳ **NADA ESTÁ NO AR.** Tudo está só no ramo `sessao-56-busca-geoapify-ordem-da-rota` desta mesa (os 7 commits da 56 + os dos ajustes, em cima da main `78e8829`): nenhuma atualização de banco aplicada, a função `geocodificar` não foi publicada, o site não foi publicado, nada foi enviado para fora deste PC. A ligação é com o dono, na ordem da seção 4.
+> ✅ **24/11 (~00:40–00:58) — NO AR pelo Cowork, com o OK do dono:** as 3 atualizações do banco (passos 1, 1b, 1c) e a função `geocodificar` (versão 14, passo 2). **Validado no navegador em 24/11 (~00:40–00:50)** — seção 9. **Falta só publicar o site (passo 4) e a contagem do passo 5 depois.**
+>
+> ~~⏳ **NADA ESTÁ NO AR.** Tudo está só no ramo `sessao-56-busca-geoapify-ordem-da-rota` desta mesa (os 7 commits da 56 + os dos ajustes, em cima da main `78e8829`): nenhuma atualização de banco aplicada, a função `geocodificar` não foi publicada, o site não foi publicado, nada foi enviado para fora deste PC. A ligação é com o dono, na ordem da seção 4.~~
 >
 > ⚠️ **O link deste handoff no [[000 - MAPA DO PROJETO]] não foi feito** (o pedido da fila manda não editar as notas grandes enquanto a dieta da documentação não entra) — está na seção 7.
 
@@ -103,7 +105,7 @@ Demanda: [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · Di�
 
 ## 4. Para ligar com o dono (nesta ordem, cada passo com o OK dele)
 
-**1. A atualização do banco** (`20261124100000_plt_ordem_da_rota_nao_muda.sql`), pelo aplicador da casa só com este arquivo (`--so`).
+✅ **FEITO (Cowork, 24/11 ~00:40–00:58)** · **1. A atualização do banco** (`20261124100000_plt_ordem_da_rota_nao_muda.sql`), pelo aplicador da casa só com este arquivo (`--so`).
 - **Antes:** conferir que as três funções vivas são as que a migration tomou por base (o corpo de cada uma igual ao da última versão nas migrations) e que ninguém mais as chama com a assinatura antiga:
 ```sql
 select p.oid::regprocedure as funcao, md5(p.prosrc) as corpo
@@ -115,7 +117,7 @@ select p.oid::regprocedure as funcao, md5(p.prosrc) as corpo
 ```
 - **Depois:** as mesmas 3 com as assinaturas novas — `(bigint, jsonb)`, `(bigint, jsonb)`, `(bigint, date, bigint, integer, jsonb)` — e a nova `plt_privado.fn_rota_ordem_que_fica(date, bigint, integer, jsonb)`; no site de hoje, "Tirar" um pedido de teste de uma rota continua funcionando.
 
-**1b. (ajustes) A atualização do banco de "quem entra vai para o lugar mais perto"** (`20261124110000_plt_entra_no_lugar_mais_perto.sql`), **logo depois da 1**, também com `--so`.
+✅ **FEITO (Cowork, 24/11)** · **1b. (ajustes) A atualização do banco de "quem entra vai para o lugar mais perto"** (`20261124110000_plt_entra_no_lugar_mais_perto.sql`), **logo depois da 1**, também com `--so`.
 - **Antes:** conferir que as 4 funções vivas são as que ela toma por base (`plt_fn_programar_entrega` já na versão do passo 1; `plt_fn_programar_rota`, `plt_fn_programar_rota_paradas` e `plt_fn_parada_avulsa_salvar` iguais às das migrations 20261014140000, 20261027060000 e 20261112060000 — nenhuma outra frente as recriou depois):
 ```sql
 select p.oid::regprocedure as funcao, md5(p.prosrc) as corpo, length(p.prosrc) as tamanho
@@ -135,7 +137,7 @@ select p.oid::regprocedure from pg_proc p join pg_namespace n on n.oid = p.prona
 ```
   e, num pedido de teste, "Reprogramar" para uma rota que já tem paradas → ele aparece com número guardado (não no fim por falta de ordem).
 
-**1c. (ajustes) A atualização do banco do aviso no sino** (`20261124120000_plt_aviso_busca_fora.sql`), também com `--so`.
+✅ **FEITO (Cowork, 24/11)** · **1c. (ajustes) A atualização do banco do aviso no sino** (`20261124120000_plt_aviso_busca_fora.sql`), também com `--so`.
 - **Antes:** conferir que o catálogo dos avisos vivo é o da 20261116010000 (nenhuma frente o recriou depois — as filas 52 a 55 ainda não estão na main; se alguma entrar antes, juntar os tipos dela com este):
 ```sql
 select count(*) as tipos, bool_or(tipo = 'entrega_parcial_revogada') as tem_a_51, bool_or(tipo = 'busca_endereco_fora') as ja_tem
@@ -144,9 +146,9 @@ select count(*) as tipos, bool_or(tipo = 'entrega_parcial_revogada') as tem_a_51
 ```
 - **Depois:** a mesma consulta com `ja_tem = true` e um tipo a mais; e `select has_function_privilege('authenticated', 'public.plt_fn_busca_fora_avisar()', 'execute')` = **false** (só a função da busca chama).
 
-**2. Publicar a função `geocodificar`** (os três arquivos: `index.ts`, `busca.ts`, `fluxo.ts`). **Antes do site e depois do 1c** (ela chama a porta do aviso; sem a porta, só registra que não conseguiu avisar e segue). O segredo `PLT_GEOAPIFY_CHAVE` já está lá (o dono pôs em 23/11) — não mexer nele.
+✅ **FEITO (Cowork, 24/11 — versão 14)** · **2. Publicar a função `geocodificar`** (os três arquivos: `index.ts`, `busca.ts`, `fluxo.ts`). **Antes do site e depois do 1c** (ela chama a porta do aviso; sem a porta, só registra que não conseguiu avisar e segue). O segredo `PLT_GEOAPIFY_CHAVE` já está lá (o dono pôs em 23/11) — não mexer nele.
 
-**3. Teste real de um endereço.** Abrir Rotas → Programar (o site de hoje já serve): os "procurando no mapa…" devem começar a ganhar ponto. Conferir no banco que entrou ponto pela Geoapify:
+✅ **VISTO NA TELA (validação de 24/11, seção 9)** · **3. Teste real de um endereço.** Abrir Rotas → Programar (o site de hoje já serve): os "procurando no mapa…" devem começar a ganhar ponto. Conferir no banco que entrou ponto pela Geoapify:
 ```sql
 select fonte, resolvido, count(*), max(consultado_em)
   from public.plt_geocache
@@ -156,9 +158,9 @@ select fonte, resolvido, count(*), max(consultado_em)
 ```
 E no registro da função: nenhuma linha com "Nominatim"; se aparecer "Geoapify HTTP 401/403", a chave não foi aceita (conferir o nome do segredo). Para **ver o aviso novo** de propósito: só com a busca fora de verdade — não vale a pena derrubar; fica provado pelos testes automáticos.
 
-**4. Publicar o site** (subir para a main publica) — só depois de 1 e 2.
+⏳ **FALTA — com o dono** · **4. Publicar o site** (subir para a main publica) — só depois de 1 e 2.
 
-**5. A contagem de pedidos programados sem ponto, antes (do passo 2) e depois (do passo 4):**
+⏳ **FALTA — depois do 4** · **5. A contagem de pedidos programados sem ponto, antes (do passo 2) e depois (do passo 4):**
 ```sql
 select count(*) filter (where g.chave is null)                 as nunca_procurados,
        count(*) filter (where g.resolvido is false)            as sem_ponto,
@@ -203,7 +205,7 @@ Conferir à vista: a rota do Hyundai HR de 23/11 (7 paradas) e as de 24/11 em di
 
 ## 6. Ficou pendente
 
-- **Ver as telas no navegador** (computador, 375 e 768) — não foi possível nesta mesa.
+- ~~Ver as telas no navegador~~ ↪️ **feito em 24/11** (seção 9); ficou sem prova de tela só o que exige rota gravada (ver a seção 9).
 - ~~Pedido reprogramado entra na rota de destino sem lugar guardado~~ ↪️ **resolvido nos ajustes** (o dono respondeu: lugar mais perto).
 - **A pergunta da faixa "busca fora" para todos** (hoje só aparece para quem tem endereço novo a procurar) **segue aberta** — o dono vai responder.
 - **Entregue / não entregue numa rota antiga sem ordem salva** ainda recalcula o que sobra — a B3 já travou a única rota que restava (24/11), então só volta a acontecer com rota nascida pelo site de antes, até o site novo subir.
@@ -248,3 +250,21 @@ src/rotas/AbaProgramar.tsx · AbaJaProgramadas.tsx · ModalProgramar.tsx · src/
 src/notificacoes/api.ts · src/rotas/buscaGeoapify.test.ts
 _docs/Plataforma/Demandas/SESSAO-56 - … .md · _docs/Plataforma/Execucao/SESSAO-56.md · este handoff
 ```
+
+## 9. Validação no navegador (24/11, ~00:40–00:50 — fila do Escritório)
+
+Site desta mesa rodando local, contra o banco de produção (já com as 3 atualizações e a função nova), entrando com o usuário de teste (enxerga Rotas). Prints em `C:\Users\wccau\.escritorio\telas\domoby\sessao-56c-validar-no-navegador\` (01 a 19). Console: 0 erros.
+
+| Item | Resultado | Prints |
+|---|---|---|
+| 1. Busca pela Geoapify | ✅ Programar: 9 "procurando no mapa…" → 0 em < 30 s, os 30 pedidos com ponto. Já programadas: 13961 (23/11) e 13959, 13962, 13976 (24/11) ganharam ponto em < 15 s; nenhum "procurando" parado. **13962 (Lagoa Azul) e 13976 (Tirol) caíram no ponto da cidade** ("ajustar o pino") — a logística acerta o pino. | 01, 02, 03 |
+| 2. Busca digitada (parada avulsa) | ✅ "Av. Eng. Roberto Freire, Ponta Negra" → pino em Ponta Negra | 04 |
+| 3. "Powered by Geoapify" | ✅ rodapé dos mapas (Programar, Já programadas, mini-mapa de Entregas do dia) e embaixo do "Achar no mapa"; sem rolagem lateral em 1366, 768 e 375 | 12, 14, 18 |
+| 4. A ordem não se mexe sozinha | ✅ **na montagem** (paradas TESTE AGENTE): arrastar, tirar a 3ª (as outras na mesma sequência, renumeradas), pôr uma nova (entrou no lugar mais perto sem trocar as outras); 375 e 768 iguais. **Sem prova de tela:** rota gravada — a tela não deixa programar rota só com paradas avulsas e programar pedido real é proibido; fica a prova da bateria do banco | 05–08, 11, 13 |
+| 5. Montagem com pedidos | ✅ incluir 2 pedidos (sem programar) não trocou as paradas entre si; desmarcar um não reordenou; "Limpar" deixou tudo vazio | 09, 10, 15 |
+| 6. Aviso "não respondeu" / faixa "busca fora" / sino | ⚪ não dá para derrubar a busca — provados pelos testes automáticos; Configurações → Avisos mostra "Busca de endereço fora do ar" (grupo Expedição) | 19 |
+| 7. Rota de 24/11 do Hyundai HR | ✅ 13840 → 13960 → 13959 → 13962 → 13976, antes e depois dos pontos; igual em Entregas do dia; sem "Salvar ordem" (já gravada). Não tocada | 03, 16, 17, 18 |
+
+**Testes:** lint e build limpos. A bateria de tela teve falhas por tempo esgotado em telas que a 56 não tocou (cada rodada em arquivos diferentes; todas passam isoladas) — instabilidade da máquina carregada, não defeito.
+
+**Veredito: pronto para subir o site (passo 4).** Depois, a contagem do passo 5.

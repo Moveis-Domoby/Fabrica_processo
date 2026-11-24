@@ -217,3 +217,29 @@ Pedido: `_escritorio/handoffs/sessao-56b-ajustes-ordem-e-sino-prompt-claude-code
 - `SESSAO-56 ajustes (item 1)` — quem entra vai para o lugar mais perto (migration 20261124110000 + telas + bateria).
 - `SESSAO-56 ajustes (item 2)` — o aviso no sino (migration 20261124120000 + função da busca + testes).
 - `SESSAO-56 ajustes cofre` — este diário e o handoff.
+
+---
+
+# Validação no navegador (24/11/2026, ~00:40–00:50 — fila do Escritório, "56c")
+
+Pedido: provar na tela, com o usuário de teste, que a 56 e os ajustes funcionam — banco (as 3 atualizações) e a função `geocodificar` (versão 14) já no ar pelo Cowork (24/11 ~00:40–00:58). Site: o desta mesa, rodando local (porta 5168), contra o banco de produção.
+
+## O que rodou
+- `npm run lint` → limpo. `npm run build` → ok.
+- `npm test` → 1ª rodada (com o servidor e o navegador abertos) 9 falhas em 6 arquivos que a sessão NÃO tocou (chat, Estrutura, janela do card, Tempos de produção) — quase todas "Test timed out in 5000ms"; isolados, 17/17 passam. 2ª rodada (sem servidor) 3 falhas DIFERENTES (Ficha do pedido, Estrutura, Liberar peça); isoladas, 22/22 passam. `git diff origin/main...HEAD` não tem nenhum arquivo dessas áreas → instabilidade por carga, não defeito da 56.
+- Banco: nada rodado (já aplicado pelo Cowork; esta mesa não aplica).
+
+## Resultado na tela (prints em `.escritorio/telas/domoby/sessao-56c-validar-no-navegador/`)
+1. **Busca pela Geoapify:** Programar abriu com 9 "procurando no mapa…" → em < 30 s, 0; os 30 pedidos com "Acertar o ponto no mapa" (01, 02). Já programadas: 4 "procurando" (13961 de 23/11; 13959, 13962, 13976 de 24/11) → 0 em < 15 s. 13959 ganhou ponto de rua; **13962 (Lagoa Azul) e 13976 (Tirol) ficaram no ponto da cidade** ("Endereço aproximado… ajustar o pino") — a regra de escolha (não mudou) não aceitou o que a Geoapify devolveu; a logística ajusta o pino.
+2. **Busca digitada** (janela da parada avulsa): "Av. Eng. Roberto Freire, Ponta Negra" → pino em Ponta Negra (04).
+3. **"Powered by Geoapify":** no rodapé do mapa de Programar, de Já programadas, do mini-mapa de Entregas do dia e embaixo do "Achar no mapa"; sem rolagem lateral em 1366, 768 e 375 (`scrollWidth = innerWidth`) (12, 14, 18). Em 1366, os botões flutuantes (lâmpada/chat) cobrem parte do rodapé do mapa — já era assim, não é da 56.
+4. **A ordem não se mexe sozinha — só na montagem.** A tela NÃO deixa programar rota só com paradas avulsas ("marque ao menos um pedido para programar"), e criar rota real exigiria programar pedido real (proibido). Então o item 4 foi provado na montagem (aba Programar, que não grava nada até "Programar"): 4 paradas TESTE AGENTE (Ponta Negra, Alecrim, Lagoa Nova, Tirol) → entraram cada uma no lugar mais perto (05); arrastei Ponta Negra para 1º (06); tirei a 3ª (Tirol) → Ponta Negra, Alecrim, Lagoa Nova, só renumeradas (07); pus uma nova (Petrópolis) → entrou em 2º, as outras na mesma ordem (08). 375 e 768: mesma ordem, sem rolagem lateral (11, 13). **Sem prova de tela:** "Salvar ordem" em Já programadas, tirar/pôr parada numa rota gravada, reprogramar para rota existente (passos 7–13 do Como testar) — só com rota real; ficam provados pela bateria do banco.
+5. **Montagem com pedidos (sem programar):** marquei 13964 e 13177 → entraram no meio, as 4 paradas na mesma ordem entre si (09); desmarquei 13964 → os outros não se mexeram (10). "Limpar" → nada marcado, nenhuma parada (15).
+6. **Aviso "não respondeu" e faixa "busca fora":** não dá para derrubar a busca → provados pelos testes automáticos (estadoDaBusca 11 + aviso no sino 5, verdes). Configurações → Avisos mostra "Busca de endereço fora do ar" no grupo Expedição (19).
+7. **Rota de 24/11 do Hyundai HR:** 13840 → 13960 → 13959 → 13962 → 13976, antes e depois dos pontos chegarem, em Já programadas (1366, 768, 375) e em Entregas do dia; sem "Salvar ordem" (já gravada) (03, 16, 17, 18). Não foi tocada.
+- Console do navegador: 0 erros.
+
+## Lições
+- **L9 ·** rota de teste só com paradas avulsas não existe pela tela (programar exige pedido): validação de ordem "sem mexer em pedido real" se faz na montagem; o que só existe em rota gravada fica com a prova da bateria do banco — dizer isso no pedido da fila antes de mandar "crie uma rota de teste".
+- **L10 ·** `npm test` com servidor + navegador abertos estoura o tempo de 5 s em telas pesadas (e cada rodada falha em arquivos diferentes): rodar a bateria com a máquina livre, e conferir as falhas isoladas + `git diff` antes de chamar de defeito.
+- **L11 ·** o print do navegador dos agentes cai na pasta de trabalho (raiz do repositório) se o nome não tiver caminho — usar o caminho relativo da pasta de prints da sala, senão o print entra no `git status`.
