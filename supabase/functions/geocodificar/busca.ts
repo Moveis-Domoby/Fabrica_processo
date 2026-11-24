@@ -70,12 +70,32 @@ export interface Candidato {
   estado: string | null
   cep: string | null
   fonte: 'nominatim' | 'photon' | 'geoapify'
+  /**
+   * SESSAO-57: o resultado é um LUGAR (bairro ou cidade), não uma rua — só no
+   * endereço digitado à mão, onde ele vira o ponto de onde abrir o mapa, nunca
+   * o ponto da casa. Ausente = rua, casa ou lugar com rua.
+   */
+  lugar?: NivelDoLugar
+}
+
+/** O tamanho do lugar que o buscador devolveu quando não achou a rua. */
+export type NivelDoLugar = 'bairro' | 'cidade'
+
+/** SESSAO-57: o lugar (bairro ou cidade) achado no lugar da rua — só sugestão de onde abrir o mapa. */
+export interface LugarAproximado {
+  lat: number
+  lon: number
+  nivel: NivelDoLugar
+  /** O nome do bairro ou da cidade (para o aviso da tela); null = sem nome. */
+  nome: string | null
 }
 
 export interface Escolha {
   ponto: { lat: number; lon: number } | null
   /** Por que não escolheu (para o registro da função, sem o endereço). */
-  motivo: 'ok' | 'sem_candidato' | 'nome_nao_bate' | 'fora_do_lugar' | 'ambiguo'
+  motivo: 'ok' | 'sem_candidato' | 'nome_nao_bate' | 'fora_do_lugar' | 'ambiguo' | 'so_lugar'
+  /** SESSAO-57: o endereço digitado sem rua achada, mas com o bairro ou a cidade (`so_lugar`). */
+  aproximado?: LugarAproximado
 }
 
 // ---------------------------------------------------------------------------
@@ -362,16 +382,59 @@ interface Avaliado {
 }
 
 /**
+ * SESSAO-57: a rua escrita no começo do endereço DIGITADO ("Rua Veredas do
+ * Peruaçu 125, Nova Esperança, Parnamirim" → "Rua Veredas do Peruaçu") — só
+ * quando o 1º pedaço começa pelo tipo do logradouro (Rua, Av., Travessa…);
+ * senão null (um nome de lugar, um ponto de referência: não há rua a conferir).
+ */
+export function ruaDoTextoLivre(texto: string): string | null {
+  const primeira = texto.split(',')[0]?.trim() ?? ''
+  if (!primeira) return null
+  const ps = palavras(primeira)
+  if (ps.length < 2 || !TIPOS.has(ps[0])) return null
+  // o número no fim ("125", "nº 125", "s/n") não é nome da rua
+  const semNumero = primeira.replace(/[\s,]+(n[º°o.]?\s*)?(\d+[\s-]?[A-Za-z]?|s\/?n)$/i, '').trim()
+  return nomeDaRua(semNumero).nome.length > 0 ? semNumero : null
+}
+
+/**
+ * SESSAO-57 (o pedido 13961 — "Rua Veredas do Peruaçu", que o mapa não
+ * conhece): o endereço DIGITADO só aceita RUA ou CASA (ou lugar com rua). Com
+ * a rua escrita no texto, o nome precisa bater (≥ 0,75, a régua do cadastro);
+ * sem rua no texto (um lugar, uma referência), o 1º resultado de rua. O bairro
+ * ou a cidade que o buscador devolve quando não acha a rua NUNCA vira o ponto:
+ * volta como `aproximado` (onde abrir o mapa) — antes ele virava o pino com
+ * cara de achado.
+ */
+function escolherLivre(e: EnderecoPartido, candidatos: Candidato[]): Escolha {
+  const ruaDigitada = ruaDoTextoLivre(e.texto)
+  const ruas = candidatos.filter((c) => !c.lugar)
+  const servem = ruaDigitada
+    ? ruas.filter(
+        (c) =>
+          Math.max(semelhancaNome(ruaDigitada, c.rua), c.nome ? semelhancaNome(ruaDigitada, c.nome) : 0) >= 0.75,
+      )
+    : ruas
+  if (servem.length > 0) return { ponto: { lat: servem[0].lat, lon: servem[0].lon }, motivo: 'ok' }
+  const lugar = candidatos.find((c) => c.lugar)
+  if (lugar?.lugar) {
+    return {
+      ponto: null,
+      motivo: 'so_lugar',
+      aproximado: { lat: lugar.lat, lon: lugar.lon, nivel: lugar.lugar, nome: lugar.nome ?? null },
+    }
+  }
+  return { ponto: null, motivo: ruas.length > 0 ? 'nome_nao_bate' : 'sem_candidato' }
+}
+
+/**
  * Escolhe o ponto do endereço entre os candidatos — ou diz por que não dá.
- * Endereço livre (digitado): o 1º candidato do buscador (a pessoa confere o
- * pino na tela).
+ * Endereço livre (digitado): `escolherLivre` (↪️ SESSAO-57: antes era o 1º
+ * candidato, fosse ele a rua ou a cidade inteira).
  */
 export function escolher(e: EnderecoPartido, candidatos: Candidato[]): Escolha {
   if (candidatos.length === 0) return { ponto: null, motivo: 'sem_candidato' }
-  if (e.livre) {
-    const c = candidatos[0]
-    return { ponto: { lat: c.lat, lon: c.lon }, motivo: 'ok' }
-  }
+  if (e.livre) return escolherLivre(e, candidatos)
 
   const avaliados: Avaliado[] = []
   let algumNome = false
@@ -562,6 +625,13 @@ export function escolherLugar(
 
 type Props = Record<string, string | undefined>
 
+/** SESSAO-57: as camadas de LUGAR do Photon (o resto — casa, rua, ponto com nome — não é lugar). */
+function nivelPhoton(tipo: string | undefined): NivelDoLugar | null {
+  if (tipo === 'district' || tipo === 'locality') return 'bairro'
+  if (tipo === 'city' || tipo === 'county') return 'cidade'
+  return null
+}
+
 /** Os candidatos de uma resposta do Photon (GeoJSON). */
 export function candidatosPhoton(corpo: unknown): Candidato[] {
   const features = (corpo as { features?: { geometry?: { coordinates?: number[] }; properties?: Props }[] })?.features ?? []
@@ -572,6 +642,7 @@ export function candidatosPhoton(corpo: unknown): Candidato[] {
     const p = f.properties ?? {}
     if (p.countrycode && p.countrycode !== 'BR') continue
     const tipo = p.type === 'house' ? 'house' : p.type === 'street' ? 'street' : 'outro'
+    const lugar = nivelPhoton(p.type)
     lista.push({
       lat,
       lon,
@@ -584,6 +655,7 @@ export function candidatosPhoton(corpo: unknown): Candidato[] {
       estado: p.state ?? null,
       cep: p.postcode ?? null,
       fonte: 'photon',
+      ...(lugar ? { lugar } : {}),
     })
   }
   return lista
@@ -681,11 +753,21 @@ export function consultaGeoapifyCidade(e: EnderecoPartido): ConsultaGeoapify | n
  * O que se quer da resposta: a RUA (casa, rua ou lugar com rua — o resto é
  * descartado: quando a Geoapify não acha a rua, ela devolve a cidade), o LUGAR
  * (bairro ou cidade, para os degraus) ou o que vier (o endereço digitado à
- * mão: a pessoa confere o pino na tela).
+ * mão). ↪️ SESSAO-57: no `livre`, o bairro e a cidade vêm MARCADOS (`lugar`)
+ * — quem escolhe não os toma pela rua; o estado, o país e o "não sei" saem.
  */
 export type ModoGeoapify = 'rua' | 'lugar' | 'livre'
 
 type ResultadoGeoapify = Record<string, unknown>
+
+/** SESSAO-57: o tamanho de cada tipo de LUGAR da Geoapify (a área do CEP conta como bairro). */
+const NIVEL_GEOAPIFY: Record<string, NivelDoLugar> = {
+  suburb: 'bairro',
+  district: 'bairro',
+  postcode: 'bairro',
+  city: 'cidade',
+  county: 'cidade',
+}
 
 /** Os candidatos de uma resposta da Geoapify (format=json: `{ results: [...] }`). */
 export function candidatosGeoapify(corpo: unknown, modo: ModoGeoapify = 'rua'): Candidato[] {
@@ -706,19 +788,25 @@ export function candidatosGeoapify(corpo: unknown, modo: ModoGeoapify = 'rua'): 
     if (modo === 'rua' && (!deRua || !rua)) continue
     if (modo === 'lugar' && deRua) continue
     const numero = texto('housenumber')
+    // SESSAO-57: no digitado, o lugar fica marcado; o que não é rua nem lugar conhecido sai
+    const lugar = deRua ? null : (NIVEL_GEOAPIFY[tipoDoMapa] ?? null)
+    if (modo === 'livre' && !deRua && !lugar) continue
     lista.push({
       lat,
       lon,
       tipo: tipoDoMapa === 'street' ? 'street' : deRua && numero ? 'house' : 'outro',
       rua,
-      // o bairro e a cidade vêm sem "name": o nome é o do próprio campo
-      nome: texto('name') ?? (deRua ? null : texto(tipoDoMapa)),
+      // o bairro e a cidade vêm sem "name": o nome é o do próprio campo (a área do CEP: o bairro dela)
+      nome:
+        texto('name') ??
+        (deRua ? null : tipoDoMapa === 'postcode' ? (texto('suburb') ?? texto('district')) : texto(tipoDoMapa)),
       numero,
       lugares: ['suburb', 'district', 'quarter', 'neighbourhood', 'hamlet'].map(texto).filter((x): x is string => !!x),
       cidades: ['city', 'town', 'village', 'municipality', 'county'].map(texto).filter((x): x is string => !!x),
       estado: texto('state'),
       cep: texto('postcode'),
       fonte: 'geoapify',
+      ...(modo === 'livre' && lugar ? { lugar } : {}),
     })
   }
   return lista

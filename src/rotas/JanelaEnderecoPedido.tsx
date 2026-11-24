@@ -6,6 +6,9 @@ import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
 import { diaEHora } from '@/pedidos/formato'
 import { acharPontoDoEndereco, marcarPontoNoMapa } from './api'
 import { AtribuicaoBusca } from './atribuicaoMapa'
+import { AvisoRuaNaoAchada, PerguntaNoRodape } from './AvisosDoPino'
+import { mesmoPontoDoMapa, useConferirPino } from './conferirPino'
+import type { PontoSuspeito } from './conferirPino'
 import { FABRICA } from './rotaRuas'
 import { SeloEnderecoAlterado } from './SeloEnderecoAlterado'
 import {
@@ -28,7 +31,7 @@ const MapaPino = lazy(() => import('./MapaPinoParada'))
 
 /** A etapa da janela: o formulário, a pergunta do Tiny ao salvar, a pergunta ao voltar ao original. */
 type Etapa = 'editar' | 'perguntar' | 'restaurar'
-type Busca = 'nada' | 'achou' | 'nao_achou' | 'falhou'
+type Busca = 'nada' | 'achou' | 'nao_achou' | 'falhou' | 'aproximado'
 interface Ponto {
   latitude: number
   longitude: number
@@ -130,6 +133,9 @@ export function JanelaEnderecoPedido({
     doTexto: CamposEndereco
   } | null>(null)
   const [busca, setBusca] = useState<Busca>('nada')
+  // SESSAO-57 (frente 1): "Achar no mapa" só achou o bairro/a cidade — o pino está lá, não na casa
+  const [lugarDaBusca, setLugarDaBusca] = useState<PontoSuspeito | null>(null)
+  const [liberado, setLiberado] = useState(false)
 
   const campos = editados ?? dados?.atual ?? CAMPOS_VAZIOS
   const limpos = limparCampos(campos)
@@ -141,6 +147,13 @@ export function JanelaEnderecoPedido({
   const pinoDoTexto =
     pino !== null && textoDoPino !== null && mesmoEndereco(limparCampos(textoDoPino), limpos)
   const problemas = textoMudou ? problemasDoEndereco(limpos) : []
+  // SESSAO-57 (frente 2): o pino longe do CEP do endereço (e o não arrastado) pergunta antes de salvar
+  const conferir = useConferirPino({
+    cep: limpos.cep ?? null,
+    suspeito: lugarDaBusca && !liberado ? lugarDaBusca : null,
+  })
+  const travadoPelaBusca =
+    lugarDaBusca !== null && !liberado && pinoDoTexto && mesmoPontoDoMapa(pino, lugarDaBusca)
 
   function mudarCampo(chave: keyof CamposEndereco, valor: string) {
     setEditados({ ...campos, [chave]: valor })
@@ -164,9 +177,13 @@ export function JanelaEnderecoPedido({
   const achar = useMutation({
     mutationFn: (v: { texto: string; campos: CamposEndereco }) => acharPontoDoEndereco(v.texto),
     onSuccess: (resultado, v) => {
+      conferir.voltar()
+      setLiberado(false)
       if (resultado) {
-        setPinoMexido({ ponto: resultado, doTexto: v.campos })
-        setBusca('achou')
+        const achado = { latitude: resultado.latitude, longitude: resultado.longitude }
+        setPinoMexido({ ponto: achado, doTexto: v.campos })
+        setLugarDaBusca(resultado.aproximado ? { ...achado, ...resultado.aproximado } : null)
+        setBusca(resultado.aproximado ? 'aproximado' : 'achou')
       } else {
         setBusca('nao_achou')
       }
@@ -517,6 +534,13 @@ export function JanelaEnderecoPedido({
                 </Botao>
               </div>
               <AtribuicaoBusca />
+              {busca === 'aproximado' && lugarDaBusca && (
+                <AvisoRuaNaoAchada
+                  lugar={lugarDaBusca}
+                  liberado={liberado || !mesmoPontoDoMapa(pino, lugarDaBusca)}
+                  aoLiberar={() => setLiberado(true)}
+                />
+              )}
               {busca === 'nao_achou' && (
                 <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
                   O mapa não achou esse endereço. Toque no mapa e arraste o pino até a casa do
@@ -565,7 +589,18 @@ export function JanelaEnderecoPedido({
       </form>
     )
     const soPino = !textoMudou && pinoMudou && pino !== null && !!dados.geo.chave
-    rodape = dados.pode_editar ? (
+    rodape = !dados.pode_editar ? (
+      <Botao tamanho="lg" variante="secundaria" onClick={aoFechar}>
+        Fechar
+      </Botao>
+    ) : conferir.pergunta ? (
+      <PerguntaNoRodape
+        pergunta={conferir.pergunta}
+        carregando={salvarPonto.isPending}
+        aoConfirmar={conferir.confirmar}
+        aoVoltar={conferir.voltar}
+      />
+    ) : (
       <>
         <Botao tamanho="lg" variante="secundaria" onClick={aoFechar} disabled={ocupado}>
           Cancelar
@@ -573,20 +608,22 @@ export function JanelaEnderecoPedido({
         <Botao
           tamanho="lg"
           icone={soPino ? <MapPinCheck /> : <MapPinPen />}
-          carregando={salvarPonto.isPending}
-          disabled={ocupado || (!textoMudou && !soPino) || problemas.length > 0}
+          carregando={salvarPonto.isPending || conferir.conferindo}
+          disabled={
+            ocupado || (!textoMudou && !soPino) || problemas.length > 0 || travadoPelaBusca
+          }
           onClick={() => {
-            if (textoMudou) setEtapa('perguntar')
-            else if (soPino && pino) salvarPonto.mutate(pino)
+            // SESSAO-57: o pino que vai junto passa pela conferência antes (o do banco, intocado, não)
+            if (textoMudou) {
+              if (pinoDoTexto && pino && pinoMudou)
+                conferir.pedirParaSalvar(pino, () => setEtapa('perguntar'))
+              else setEtapa('perguntar')
+            } else if (soPino && pino) conferir.pedirParaSalvar(pino, () => salvarPonto.mutate(pino))
           }}
         >
           {soPino ? 'Salvar o ponto' : 'Salvar o endereço'}
         </Botao>
       </>
-    ) : (
-      <Botao tamanho="lg" variante="secundaria" onClick={aoFechar}>
-        Fechar
-      </Botao>
     )
   }
 

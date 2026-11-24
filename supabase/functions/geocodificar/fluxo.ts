@@ -35,7 +35,14 @@ import {
   pontoDoCep,
   semRepetidos,
 } from './busca.ts'
-import type { Candidato, ConsultaGeoapify, EnderecoPartido, ModoGeoapify, PontoDoCep } from './busca.ts'
+import type {
+  Candidato,
+  ConsultaGeoapify,
+  EnderecoPartido,
+  LugarAproximado,
+  ModoGeoapify,
+  PontoDoCep,
+} from './busca.ts'
 
 export const GEOAPIFY = 'https://api.geoapify.com/v1/geocode/search'
 export const PHOTON = 'https://photon.komoot.io/api/'
@@ -48,6 +55,11 @@ export type Fonte = 'geoapify' | 'photon' | 'nominatim' | 'cep' | 'aprox_cidade'
 export type Consulta =
   | { tipo: 'ok'; lat: number; lon: number; fonte: Fonte }
   | { tipo: 'vazio'; motivo: string }
+  /**
+   * SESSAO-57: o endereço DIGITADO sem rua achada — só o bairro ou a cidade.
+   * NÃO é o ponto da casa: a tela abre o mapa ali e pede para arrastar o pino.
+   */
+  | { tipo: 'aproximado'; lugar: LugarAproximado }
   /** Nenhum buscador respondeu: nada se grava, a tela avisa e oferece tentar de novo. */
   | { tipo: 'erro'; motivo: string }
 
@@ -256,7 +268,9 @@ export async function procurarEndereco(endereco: string, amb: Ambiente): Promise
   const unicos = semRepetidos(candidatos)
   const escolha = escolher(e, unicos)
   if (!escolha.ponto) {
-    // o endereço digitado à mão: a pessoa marca o pino na própria janela
+    // o endereço digitado à mão: a pessoa marca o pino na própria janela —
+    // SESSAO-57: com o bairro ou a cidade só como o lugar onde o mapa abre
+    if (e.livre && escolha.aproximado) return { tipo: 'aproximado', lugar: escolha.aproximado }
     if (e.livre) return { tipo: 'vazio', motivo: escolha.motivo }
     const degrau = await degraus(amb, pausa, e, unicos)
     return degrau.tipo === 'vazio' ? { tipo: 'vazio', motivo: `${escolha.motivo}+${degrau.motivo}` } : degrau
@@ -264,6 +278,33 @@ export async function procurarEndereco(endereco: string, amb: Ambiente): Promise
   const ponto = escolha.ponto
   const fonte = candidatos.find((c) => c.lat === ponto.lat && c.lon === ponto.lon)?.fonte ?? 'geoapify'
   return { tipo: 'ok', lat: ponto.lat, lon: ponto.lon, fonte }
+}
+
+// ---------------------------------------------------------------------------
+// SESSAO-57 (frente 2): o ponto do CEP para CONFERIR o pino salvo à mão
+// ---------------------------------------------------------------------------
+
+/** Só os 8 dígitos de um CEP de RUA (o geral da cidade, …000, não diz onde fica a casa); senão null. */
+export function cepDeRua(cep: unknown): string | null {
+  if (typeof cep !== 'string') return null
+  const d = cep.replace(/\D/g, '')
+  return d.length === 8 && !d.endsWith('000') ? d : null
+}
+
+/**
+ * O ponto do CEP pelo mesmo serviço de CEP dos degraus (`peloCep`) — a tela
+ * compara com o pino antes de salvar ("o pino está a X km do CEP"). Serviço
+ * fora, CEP que ele não conhece ou CEP geral = null: a tela não bloqueia nada.
+ */
+export async function pontoParaConferir(
+  cep: unknown,
+  amb: Ambiente,
+): Promise<{ lat: number; lon: number } | null> {
+  const d = cepDeRua(cep)
+  if (!d) return null
+  const e: EnderecoPartido = { texto: '', livre: true, rua: null, numero: null, bairro: null, cidade: null, uf: null, cep: d }
+  const ponto = await peloCep(amb, e)
+  return ponto && !ponto.geral ? { lat: ponto.lat, lon: ponto.lon } : null
 }
 
 // ---------------------------------------------------------------------------

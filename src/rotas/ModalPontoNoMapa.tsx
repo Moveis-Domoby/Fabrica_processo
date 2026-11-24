@@ -5,6 +5,9 @@ import { Botao, Campo, Modal, useNotificacao } from '@/componentes/ui'
 import { AVISO_PONTO_APROXIMADO, acharPontoDoEndereco, enderecoLegivel, marcarPontoNoMapa } from './api'
 import type { PontoAproximado } from './api'
 import { AtribuicaoBusca } from './atribuicaoMapa'
+import { AvisoRuaNaoAchada, PerguntaNoRodape } from './AvisosDoPino'
+import { mesmoPontoDoMapa, useConferirPino } from './conferirPino'
+import type { PontoSuspeito } from './conferirPino'
 import { FABRICA } from './rotaRuas'
 
 const MapaPino = lazy(() => import('./MapaPinoParada'))
@@ -27,9 +30,31 @@ export interface PedidoParaMarcar {
   geo_manual?: boolean
   /** O ponto de agora é aproximado (a rua não foi achada): de qual degrau veio. */
   geo_aproximado?: PontoAproximado | null
+  /** SESSAO-57: o CEP do endereço (o pino longe dele pede confirmação ao salvar). */
+  cep?: string | null
+  /**
+   * SESSAO-57 (frente 3 — o 13840): o ponto marcado à mão é o mesmo ponto
+   * aproximado da cidade (salvaram sem arrastar). A janela trata como o
+   * aproximado: salvar sem mover pede confirmação.
+   */
+  pino_no_centro?: boolean
 }
 
-type Busca = 'nada' | 'achou' | 'nao_achou' | 'falhou'
+type Busca = 'nada' | 'achou' | 'nao_achou' | 'falhou' | 'aproximado'
+
+/** SESSAO-57 (frente 2): o ponto que a janela abriu quando ele é aproximado (a cidade ou o bairro), não a casa. */
+function suspeitoAoAbrir(p: PedidoParaMarcar | null): PontoSuspeito | null {
+  if (!p || p.latitude == null || p.longitude == null || p.geo_resolvido === false) return null
+  const aproximado = (p.geo_aproximado && !p.geo_manual) || p.pino_no_centro
+  if (!aproximado) return null
+  const bairro = p.geo_aproximado === 'bairro' && !p.geo_manual
+  return {
+    latitude: p.latitude,
+    longitude: p.longitude,
+    nivel: bairro ? 'bairro' : 'cidade',
+    nome: bairro ? p.bairro : p.cidade,
+  }
+}
 
 /** Chaves das telas que mostram o ponto do pedido (releem depois de marcar). */
 const RELER: string[][] = [['programacao'], ['programadas'], ['entregas-do-dia'], ['rotas']]
@@ -72,14 +97,26 @@ export function ModalPontoNoMapa({
   )
   const [busca, setBusca] = useState<Busca>('nada')
   const [mexeu, setMexeu] = useState(false)
+  // SESSAO-57 (frente 1): "Achar no mapa" só achou o bairro/a cidade — o pino está lá, não na casa
+  const [lugarDaBusca, setLugarDaBusca] = useState<PontoSuspeito | null>(null)
+  const [liberado, setLiberado] = useState(false)
+  const [suspeitoInicial] = useState(() => suspeitoAoAbrir(pedido))
+  const conferir = useConferirPino({
+    cep: pedido?.cep ?? null,
+    suspeito: lugarDaBusca ? (liberado ? null : lugarDaBusca) : suspeitoInicial,
+  })
 
   const achar = useMutation({
     mutationFn: (t: string) => acharPontoDoEndereco(t),
     onSuccess: (resultado) => {
+      conferir.voltar()
       if (resultado) {
-        setPonto(resultado)
+        const ponto = { latitude: resultado.latitude, longitude: resultado.longitude }
+        setPonto(ponto)
         setMexeu(true)
-        setBusca('achou')
+        setLiberado(false)
+        setLugarDaBusca(resultado.aproximado ? { ...ponto, ...resultado.aproximado } : null)
+        setBusca(resultado.aproximado ? 'aproximado' : 'achou')
       } else {
         setBusca('nao_achou')
       }
@@ -124,7 +161,11 @@ export function ModalPontoNoMapa({
   })
 
   if (!pedido) return null
-  const podeSalvar = ponto !== null && !!pedido.geo_chave && !!pedido.endereco_geocodificavel
+  // SESSAO-57 (frente 1): o pino no bairro/na cidade da busca só salva depois de arrastar (ou de "salvar assim mesmo")
+  const travadoPelaBusca =
+    lugarDaBusca !== null && !liberado && mesmoPontoDoMapa(ponto, lugarDaBusca)
+  const podeSalvar =
+    ponto !== null && !!pedido.geo_chave && !!pedido.endereco_geocodificavel && !travadoPelaBusca
 
   return (
     <Modal
@@ -133,6 +174,14 @@ export function ModalPontoNoMapa({
       titulo={`Ponto no mapa — pedido ${pedido.numero}`}
       descricao={enderecoLegivel(pedido)}
       rodape={
+        conferir.pergunta ? (
+          <PerguntaNoRodape
+            pergunta={conferir.pergunta}
+            carregando={salvar.isPending}
+            aoConfirmar={conferir.confirmar}
+            aoVoltar={conferir.voltar}
+          />
+        ) : (
         <>
           {pedido.geo_manual && (
             <Botao
@@ -151,13 +200,14 @@ export function ModalPontoNoMapa({
           <Botao
             tamanho="lg"
             icone={<MapPinCheck />}
-            onClick={() => ponto && salvar.mutate(ponto)}
+            onClick={() => ponto && conferir.pedirParaSalvar(ponto, () => salvar.mutate(ponto))}
             disabled={!podeSalvar}
-            carregando={salvar.isPending}
+            carregando={salvar.isPending || conferir.conferindo}
           >
             Salvar o ponto
           </Botao>
         </>
+        )
       }
     >
       <form className="flex flex-col gap-3" onSubmit={(e) => e.preventDefault()}>
@@ -183,6 +233,13 @@ export function ModalPontoNoMapa({
         </div>
         <AtribuicaoBusca />
 
+        {busca === 'aproximado' && lugarDaBusca && (
+          <AvisoRuaNaoAchada
+            lugar={lugarDaBusca}
+            liberado={liberado || !mesmoPontoDoMapa(ponto, lugarDaBusca)}
+            aoLiberar={() => setLiberado(true)}
+          />
+        )}
         {busca === 'nao_achou' && (
           <p className="rounded-dm border border-atencao-borda bg-atencao-fundo px-3 py-2 text-sm text-atencao-texto">
             O mapa não achou esse texto. Tente só a rua e a cidade — ou toque no mapa e arraste o
@@ -214,7 +271,9 @@ export function ModalPontoNoMapa({
               ? 'Confira o pino na casa do cliente (arraste ou toque no mapa para acertar) e salve.'
               : pedido.geo_aproximado && !pedido.geo_manual
                 ? `${AVISO_PONTO_APROXIMADO}: arraste o pino (ou toque no mapa) até a casa do cliente e salve.`
-                : 'Este é o ponto de agora — arraste o pino (ou toque no mapa) para acertar e salve.'
+                : pedido.pino_no_centro
+                  ? 'O pino foi salvo no centro da cidade, não na casa — arraste o pino (ou toque no mapa) até a casa do cliente e salve.'
+                  : 'Este é o ponto de agora — arraste o pino (ou toque no mapa) para acertar e salve.'
             : 'O pino está na fábrica — toque no mapa ou arraste o pino até a casa do cliente.'}
         </p>
         <p className="text-xs text-texto-fraco">
