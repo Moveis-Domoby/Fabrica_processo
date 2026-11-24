@@ -133,3 +133,7 @@ tags: [memoria, aprendizado, tema/migrations]
 ### E-317
 
 - [2026-11-23] **E-317** (Claude Code, SESSAO-56) · **A bateria reaplica migrations antigas no meio:** a 1ª rodada passou "verde" provando a versão velha da porta. *Correção:* toda porta recriada por uma migration nova é reaplicada no bloco que a testa.
+
+### A-263
+
+- [2026-11-24] **A-263** (Claude Code, subida de 24/11) · **Juntar várias entregas que acrescentam blocos à bateria no mesmo ponto:** o git encaixa o bloco novo *depois do último bloco que já existe* sempre que o contexto bate — a ordem final dos blocos pode sair diferente da ordem dos cherry-picks **sem conflito nenhum**. Conferir a ordem pelos títulos dos blocos no fim e, para cada ramo, procurar o trecho inteiro da versão do próprio ramo no arquivo final (e cada linha que ele acrescentou no meio).
