@@ -25872,603 +25872,6 @@ conferir(true, 'a migration antiga de "Já programadas" reaplica depois da nova,
 
 
 // ============================================================================
-// SESSAO-56 · bloco B (migration 20261124100000 — pedido do dono, 23/11): A
-// ORDEM DA ROTA NÃO SE MEXE SOZINHA — tirar um pedido, reprogramar ou remover
-// uma parada tira SÓ aquele item; os outros ficam na ordem que a tela mostrava
-// (ela vai junto no gesto); o pedido que entra numa rota vai para o fim
-// guardado; o site de antes (sem a ordem) segue funcionando.
-// Faixa só deste bloco: pedidos 956101–956108 · caminhão TST5656 · entregador
-// …5631 (CPF 56700000001).
-// ============================================================================
-{ // escopo próprio (E-70)
-titulo('SESSAO-56 · B · a rota nasce com a ordem guardada; tirar um pedido não mexe nos outros')
-
-const um56 = async (sql) => (await bd.query(sql)).rows[0]
-const como56 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
-const logado56 = async (auth, sql) => {
-  await como56(auth)
-  await bd.exec('savepoint l56')
-  try {
-    await bd.exec('set role authenticated')
-    const linhas = (await bd.query(sql)).rows
-    await bd.exec('reset role')
-    await bd.exec('release savepoint l56')
-    return linhas
-  } catch (erro) {
-    await bd.exec('rollback to savepoint l56')
-    await bd.exec('reset role')
-    throw new Error(`logado56: ${erro.message}`)
-  }
-}
-const recusa56 = async (auth, sql, descricao, padrao) => {
-  await como56(auth)
-  await bd.exec('savepoint s56')
-  try {
-    await bd.exec('set role authenticated')
-    await bd.exec(sql)
-    conferir(false, descricao, 'a operação passou, e não devia')
-  } catch (erro) {
-    conferir(padrao.test(erro.message), descricao, erro.message)
-  } finally {
-    await bd.exec('rollback to savepoint s56')
-    await bd.exec('reset role')
-  }
-}
-const ENT56 = '00000000-0000-0000-0000-000000005631'
-await como56('')
-await bd.exec('begin')
-try {
-  const NUMEROS = [956101, 956102, 956103, 956104, 956105, 956106, 956107, 956108]
-  await bd.exec(`
-    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos)
-      values ('Entregador 56', 'ent56@teste.com', '56700000001', 'ent.56', 'operador', '${ENT56}', array['entregas']);
-    insert into public.plt_caminhoes (nome, placa) values ('Baú 56', 'TST5656');
-    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista)
-      select n, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', n * 100, current_date
-        from unnest(array[${NUMEROS.join(', ')}]) as n;
-    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
-      select p.id, 1, 'S56B', 'Mesa Teste 56', 1 from public.pedidos p where p.numero in (${NUMEROS.join(', ')});
-  `)
-  const CAM = (await um56(`select id::int as id from public.plt_caminhoes where placa = 'TST5656'`)).id
-  const HOJE = (await um56(`select ((now() at time zone 'America/Fortaleza')::date)::text as d`)).d
-  const AMANHA = (await um56(`select (((now() at time zone 'America/Fortaleza')::date) + 1)::text as d`)).d
-  const card = async (n) => (await um56(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
-                                          where c.tipo = 'pedido' and p.numero = ${n}`)).id
-  const K = []
-  for (const n of NUMEROS) K.push(await card(n))
-  const [K1, K2, K3, K4, K5, K6, K7, K8] = K
-  const LOG = E40.logistica
-  // a rota (dia, rota) como o banco guarda: "p<card>:<ordem>" na ordem
-  const rota = async (dia, r = 1) => (await bd.query(`
-      select k || ':' || coalesce(o::text, '-') as k from (
-        select 'p' || pr.card_id as k, pr.ordem as o from public.plt_programacoes pr
-         where pr.data_entrega = '${dia}' and pr.caminhao_id = ${CAM} and pr.rota = ${r}
-        union all
-        select 'a' || pa.id, pa.ordem from public.plt_paradas_avulsas pa
-         where pa.data_entrega = '${dia}' and pa.caminhao_id = ${CAM} and pa.rota = ${r} and pa.removida_em is null
-      ) x order by o nulls last, k`)).rows.map((x) => x.k)
-  const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
-  const refs = (...ks) => `'${JSON.stringify(ks.map((k) => ({ t: k[0], id: Number(k.slice(1)) })))}'::jsonb`
-
-  // o site de ANTES programa sem mandar a ordem: continua como era (a rota fica sem ordem)
-  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}, ${K2}, ${K3}]::bigint[], null::bigint[], 1)`)
-  conferir((await rota(HOJE)).length === 3 && (await rota(HOJE)).every((k) => k.endsWith(':-')),
-    'programar sem mandar a ordem (o site de antes) segue como era: a rota fica sem ordem — o banco não inventa uma',
-    JSON.stringify(await rota(HOJE)))
-  // o site NOVO manda sempre a ordem da tela
-  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K4}]::bigint[], array[${K3}, ${K1}, ${K2}, ${K4}]::bigint[], 1)`)
-  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K1}:2`, `p${K2}:3`, `p${K4}:4`]),
-    'programar mandando a ordem da tela: o que já estava fica na ordem pedida e o novo no fim', JSON.stringify(await rota(HOJE)))
-
-  // tirar o 2º com a ordem que fica: só ele sai, os outros renumeram na MESMA sequência
-  const logsAntes = (await um56(`select count(*)::int as n from public.plt_logs_atividade where acao = 'programacao_removida'`)).n
-  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, ${refs(`p${K3}`, `p${K2}`, `p${K4}`)})`)
-  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K2}:2`, `p${K4}:3`]),
-    'tirar um pedido com a ordem que fica: os outros seguem na mesma sequência (3º vira 2º, 4º vira 3º)', JSON.stringify(await rota(HOJE)))
-  conferir((await um56(`select count(*)::int as n from public.plt_logs_atividade where acao = 'programacao_removida'`)).n === logsAntes + 1,
-    'o tirar continua deixando a sua linha na trilha')
-
-  titulo('SESSAO-56 · B · a rota ANTIGA sem ordem salva ganha a ordem no próprio gesto de tirar')
-
-  await bd.exec(`update public.plt_programacoes set ordem = null where data_entrega = '${HOJE}' and caminhao_id = ${CAM} and rota = 1`)
-  conferir((await rota(HOJE)).every((k) => k.endsWith(':-')), 'cenário: a rota de antes desta sessão, sem ordem nenhuma')
-  // a tela mostrava K4, K3, K2 (a sugestão daquele instante); tira o K3
-  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K3}, ${refs(`p${K4}`, `p${K2}`)})`)
-  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K2}:2`]),
-    'a ordem que a tela mostrava (menos o que saiu) fica gravada — a rota não recalcula depois', JSON.stringify(await rota(HOJE)))
-
-  // o site de antes (sem a lista): tira e não mexe em mais nada
-  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}, ${K3}]::bigint[], array[${K4}, ${K2}, ${K1}, ${K3}]::bigint[], 1)`)
-  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K2})`)
-  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K1}:3`, `p${K3}:4`]),
-    'sem a lista (o site de antes): o pedido sai e os outros ficam como estavam (com o buraco — a tela numera 1, 2, 3)', JSON.stringify(await rota(HOJE)))
-
-  // a lista não bate com a rota: recusa — e nada sai
-  await recusa56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, ${refs(`p${K4}`, `p${K3}`, `p${K8}`)})`,
-    'a lista traz um pedido que não está mais na rota: "a rota mudou noutra tela"', /rota mudou noutra tela/)
-  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K1}:3`, `p${K3}:4`]), 'e o pedido NÃO saiu (tudo ou nada)', JSON.stringify(await rota(HOJE)))
-  await recusa56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, ${refs(`p${K4}`, `p${K3}`, `p${K1}`)})`,
-    'a lista com o próprio pedido que está saindo: recusada', /rota mudou noutra tela/)
-  await recusa56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, '{"t":"p"}'::jsonb)`,
-    'a ordem num formato torto: recusada com o porquê', /formato/)
-  await recusa56(LOG, `select public.plt_fn_rota_ordenar('${HOJE}', ${CAM}, 1, ${refs(`p${K4}`, `p${K3}`)})`,
-    'e o "Salvar ordem" continua recusando a lista que não bate com a rota', /rota mudou/)
-
-  // a página não trouxe a rota inteira: o que faltou na lista fica depois, na ordem dele
-  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K4}, ${refs(`p${K3}`)})`)
-  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K1}:2`]),
-    'a tela não mostrava a rota inteira: o que ela mandou vem primeiro e o resto fica depois, na ordem que tinha', JSON.stringify(await rota(HOJE)))
-
-  titulo('SESSAO-56 · B · reprogramar: a rota de origem não se mexe; na de destino o pedido entra no fim')
-
-  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K2}, ${K4}]::bigint[], array[${K3}, ${K1}, ${K2}, ${K4}]::bigint[], 1)`)
-  // K1 vai para amanhã (rota vazia): origem K3, K2, K4; destino nasce com a ordem 1
-  await logado56(LOG, `select public.plt_fn_programar_entrega(${K1}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K3}`, `p${K2}`, `p${K4}`)})`)
-  // ↪️ SESSAO-56 (ajustes — resposta do dono): no destino o pedido ganha lugar guardado (rota vazia = 1ª)
-  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K2}:2`, `p${K4}:3`]) && igual(await rota(AMANHA), [`p${K1}:1`]),
-    'reprogramar para outro dia: na origem os outros ficam na mesma sequência; no destino (vazio) ele é a 1ª parada, com lugar guardado',
-    JSON.stringify([await rota(HOJE), await rota(AMANHA)]))
-  await logado56(LOG, `select public.plt_fn_programar_entrega(${K2}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K3}`, `p${K4}`)})`)
-  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K4}:2`]) && (await rota(AMANHA)).length === 2,
-    'o seguinte também sai sem mexer em quem ficou na origem', JSON.stringify([await rota(HOJE), await rota(AMANHA)]))
-  await logado56(LOG, `select public.plt_fn_ordenar_rota('${AMANHA}', ${CAM}, array[${K1}, ${K2}]::bigint[], 1)`)
-  // reprogramar para a MESMA rota (nada mudou): a lista é ignorada e a ordem fica
-  await logado56(LOG, `select public.plt_fn_programar_entrega(${K2}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K8}`)})`)
-  conferir(igual(await rota(AMANHA), [`p${K1}:1`, `p${K2}:2`]), 'reprogramar para a mesma rota não muda nada (nem a ordem dele, nem a dos outros)', JSON.stringify(await rota(AMANHA)))
-  // a lista de origem que não bate: recusa e o pedido não muda de rota
-  await recusa56(LOG, `select public.plt_fn_programar_entrega(${K3}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K4}`, `p${K8}`)})`,
-    'reprogramar com a lista de origem que não bate: recusado', /rota mudou noutra tela/)
-  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K4}:2`]), 'e o pedido continua na rota de origem', JSON.stringify(await rota(HOJE)))
-  // sem a lista (o site de antes): a origem fica como estava
-  await logado56(LOG, `select public.plt_fn_programar_entrega(${K3}, '${AMANHA}', ${CAM}, 2)`)
-  conferir(igual(await rota(HOJE), [`p${K4}:2`]) && igual(await rota(AMANHA, 2), [`p${K3}:1`]),
-    'reprogramar sem a lista (o site de antes): a origem não é tocada (nem renumerada); no destino vazio ele é a 1ª', JSON.stringify([await rota(HOJE), await rota(AMANHA, 2)]))
-
-  titulo('SESSAO-56 · B · a parada avulsa: tirar só ela; o entregador tira a dele sem mexer na ordem da logística')
-
-  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K6}, ${K7}]::bigint[], array[${K4}, ${K6}, ${K7}]::bigint[], 1)`)
-  const ENTID = (await um56(`select id from public.plt_usuarios where usuario = 'ent.56'`)).id
-  await bd.exec(`insert into public.plt_programacao_equipes (data_entrega, caminhao_id, rota, usuario_id) values ('${HOJE}', ${CAM}, 1, '${ENTID}')`)
-  const por = async (auth, ordem, ponto = '-5.8, -35.2') => (await logado56(auth, `select public.plt_fn_parada_avulsa_salvar(null, '${HOJE}', ${CAM}, 1,
-      'Buscar ferragem 56', 'Rua de Teste, 56, Natal', ${ponto}, null, ${ordem}) as r`))[0].r.id
-  const a1 = await por(LOG, `'[{"t":"p","id":${K4}},{"t":"nova"},{"t":"p","id":${K6}},{"t":"p","id":${K7}}]'::jsonb`)
-  // ↪️ SESSAO-56 (ajustes): sem a ordem da tela, a parada vai para o lugar mais perto —
-  // sem ponto no mapa, para o fim (o cenário deste bloco é "a do entregador no fim")
-  const a2 = await por(ENT56, 'null', 'null, null')
-  conferir(igual(await rota(HOJE), [`p${K4}:1`, `a${a1}:2`, `p${K6}:3`, `p${K7}:4`, `a${a2}:5`]), 'cenário: dois pedidos, a parada da logística no meio e a do entregador no fim', JSON.stringify(await rota(HOJE)))
-  await recusa56(ENT56, `select public.plt_fn_parada_avulsa_remover(${a2}, ${refs(`p${K6}`, `p${K4}`, `a${a1}`, `p${K7}`)})`,
-    'o entregador tirando a parada dele NÃO consegue trocar a ordem dos pedidos de carona', /só muda o lugar da parada/)
-  await logado56(ENT56, `select public.plt_fn_parada_avulsa_remover(${a2}, ${refs(`p${K4}`, `a${a1}`, `p${K6}`, `p${K7}`)})`)
-  conferir(igual(await rota(HOJE), [`p${K4}:1`, `a${a1}:2`, `p${K6}:3`, `p${K7}:4`]),
-    'o entregador tira a parada dele: só ela sai, o resto fica onde estava', JSON.stringify(await rota(HOJE)))
-  await logado56(LOG, `select public.plt_fn_parada_avulsa_remover(${a1}, ${refs(`p${K4}`, `p${K6}`, `p${K7}`)})`)
-  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K6}:2`, `p${K7}:3`]),
-    'a logística tira a parada do meio: os pedidos fecham a fila na mesma sequência', JSON.stringify(await rota(HOJE)))
-  await logado56(LOG, `select public.plt_fn_parada_avulsa_remover(${a1}, ${refs(`p${K8}`)})`)
-  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K6}:2`, `p${K7}:3`]), 'o toque repetido no "tirar a parada" não faz nada (nem confere a lista)')
-  // o último item sai: a lista vazia é aceita
-  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K6}, ${refs(`p${K4}`, `p${K7}`)})`)
-  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K7}, ${refs(`p${K4}`)})`)
-  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K4}, '[]'::jsonb)`)
-  conferir((await rota(HOJE)).length === 0, 'tirar até o último: a rota fica vazia, sem erro')
-
-  const priv = await um56(`
-    select to_regprocedure('public.plt_fn_desprogramar_entrega(bigint)') is null
-           and to_regprocedure('public.plt_fn_parada_avulsa_remover(bigint)') is null
-           and to_regprocedure('public.plt_fn_programar_entrega(bigint, date, bigint, integer)') is null as velhas_sairam,
-           has_function_privilege('authenticated', 'public.plt_fn_desprogramar_entrega(bigint, jsonb)', 'execute')
-           and has_function_privilege('authenticated', 'public.plt_fn_parada_avulsa_remover(bigint, jsonb)', 'execute')
-           and has_function_privilege('authenticated', 'public.plt_fn_programar_entrega(bigint, date, bigint, integer, jsonb)', 'execute') as logado_chama,
-           has_function_privilege('anon', 'public.plt_fn_desprogramar_entrega(bigint, jsonb)', 'execute')
-           or has_function_privilege('anon', 'public.plt_fn_parada_avulsa_remover(bigint, jsonb)', 'execute')
-           or has_function_privilege('anon', 'public.plt_fn_programar_entrega(bigint, date, bigint, integer, jsonb)', 'execute') as anonimo_chama,
-           has_function_privilege('authenticated', 'plt_privado.fn_rota_ordem_que_fica(date, bigint, integer, jsonb)', 'execute') as maquina`)
-  conferir(priv.velhas_sairam && priv.logado_chama && !priv.anonimo_chama && !priv.maquina,
-    'as assinaturas antigas saíram (uma porta só de cada); as novas para quem está logado; a maquinaria fora da API', JSON.stringify(priv))
-  await recusa56(ENT56, `select public.plt_fn_desprogramar_entrega(${K5}, '[]'::jsonb)`,
-    'o entregador continua sem poder tirar pedido da programação', /logística/)
-
-  titulo('SESSAO-56 · B · o plano da leitura nova com volume (Lei de desempenho)')
-
-  // a leitura que a porta nova faz: os itens de UMA rota (dia + caminhão + rota).
-  // Volume: 20 mil paradas em 2 mil dias (×100 do que uma fábrica junta em anos)
-  // e as programações do banco de teste — as duas pernas têm de ir pelo índice da rota.
-  await bd.exec(`
-    insert into public.plt_paradas_avulsas (data_entrega, caminhao_id, rota, ordem, titulo, endereco, criada_por)
-      select current_date - (g % 2000), ${CAM}, 1 + (g % 3), g % 10, 'Parada de volume', 'Rua de Volume, 1',
-             (select id from public.plt_usuarios where usuario = 'ent.56')
-        from generate_series(1, 20000) g;
-    analyze public.plt_paradas_avulsas;
-    analyze public.plt_programacoes;
-  `)
-  const LEITURA = `
-    select 'p' || pr.card_id as k, pr.ordem as o
-      from public.plt_programacoes pr
-      join public.plt_cards pc on pc.id = pr.card_id
-     where pr.data_entrega = '${HOJE}' and pr.caminhao_id = ${CAM} and pr.rota = 1
-       and pc.entrega_evento_id is null and pc.arquivado_em is null
-    union all
-    select 'a' || pa.id, pa.ordem
-      from public.plt_paradas_avulsas pa
-     where pa.data_entrega = '${HOJE}' and pa.caminhao_id = ${CAM} and pa.rota = 1
-       and pa.removida_em is null`
-  const plano = (await bd.query(`explain (analyze, format json) ${LEITURA}`)).rows[0]['QUERY PLAN'][0]
-  const texto56 = JSON.stringify(plano)
-  await bd.exec('set local enable_seqscan = off')
-  const forcado = JSON.stringify((await bd.query(`explain (format json) ${LEITURA}`)).rows[0]['QUERY PLAN'][0])
-  await bd.exec('set local enable_seqscan = on')
-  const indices56 = (t) => [...new Set([...t.matchAll(/"Index Name":"([a-z_0-9]+)"/g)].map((m) => m[1]))]
-  // as programações do banco de teste são poucas (o planejador varre, e está certo): para
-  // elas a prova é o índice da rota EXISTIR com as três colunas na frente e o plano saber usá-lo
-  const idxProg = (await bd.query(`select indexdef from pg_indexes
-      where schemaname = 'public' and tablename = 'plt_programacoes'`)).rows.map((x) => x.indexdef)
-  const temIndiceDaRota = idxProg.some((d) => /\(data_entrega, caminhao_id, rota/.test(d))
-  conferir(indices56(texto56).includes('plt_paradas_avulsas_rota_idx') && temIndiceDaRota
-      && indices56(forcado).some((n) => n.startsWith('plt_programacoes_')) && plano['Execution Time'] < 50,
-    `a leitura da rota vai pelo índice da rota (20 mil paradas → ${plano['Execution Time']} ms; o orçamento da porta é 50 ms) e as programações têm o índice (dia, caminhão, rota)`,
-    JSON.stringify({ plano: indices56(texto56), forcado: indices56(forcado), idxProg }))
-} finally {
-  await bd.exec('rollback')
-  await como56('')
-}
-} // fim do bloco SESSAO-56 · B
-
-// ============================================================================
-// SESSAO-56 (ajustes) · item 1 (migration 20261124110000 — resposta do dono,
-// 23/11 22:55): QUEM ENTRA NUMA ROTA QUE JÁ EXISTE VAI PARA O LUGAR MAIS PERTO
-// — reprogramar, programar sozinho e a parada avulsa nova sem a ordem da tela;
-// os outros não mudam de ordem entre si; sem ponto = fim; rota vazia = 1ª;
-// rota sem ordem salva = primeiro a ordem que a tela mostrava. A montagem com
-// vários pedidos continua como era (o bloco no fim).
-// · item 2 (migration 20261124120000): o aviso no sino com a busca de endereço
-// fora há 1 hora ou mais — uma vez por queda.
-// Faixa só deste bloco: pedidos 956201–956212 · caminhão TST5657.
-// Os pontos ficam numa linha reta ao norte da fábrica (mesma longitude):
-// A −5,80 · B −5,75 · C −5,70 · D −5,65 · N −5,725 (entre B e C) · L −5,60.
-// ============================================================================
-{ // escopo próprio (E-70)
-titulo('SESSAO-56 (ajustes) · 1 · reprogramado vai para o lugar mais perto; os outros não trocam entre si')
-
-// blocos de cima reaplicam a parada avulsa da 50 (sem a inserção) — a deste bloco de novo
-await bd.exec(await readFile(path.join(MIGRATIONS, '20261124110000_plt_entra_no_lugar_mais_perto.sql'), 'utf8'))
-
-const umA = async (sql) => (await bd.query(sql)).rows[0]
-const comoA = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
-const logadoA = async (auth, sql) => {
-  await comoA(auth)
-  await bd.exec('savepoint la')
-  try {
-    await bd.exec('set role authenticated')
-    const linhas = (await bd.query(sql)).rows
-    await bd.exec('reset role')
-    await bd.exec('release savepoint la')
-    return linhas
-  } catch (erro) {
-    await bd.exec('rollback to savepoint la')
-    await bd.exec('reset role')
-    throw new Error(`logadoA: ${erro.message}`)
-  }
-}
-await comoA('')
-await bd.exec('begin')
-try {
-  // pedido → ponto (null = sem ponto no mapa)
-  const PONTOS = {
-    956201: -5.80, 956202: -5.75, 956203: -5.70, 956204: -5.65, // A B C D
-    956205: -5.725,                                             // N (entre B e C)
-    956206: null,                                               // S (sem ponto)
-    956207: -5.60,                                              // L (além de D)
-    956208: -5.725, 956209: -5.80, 956210: -5.75, 956211: -5.70, 956212: -5.65,
-  }
-  const NUMEROS = Object.keys(PONTOS).map(Number)
-  await bd.exec(`
-    insert into public.plt_caminhoes (nome, placa) values ('Baú 56 ajustes', 'TST5657');
-    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista, endereco_entrega)
-      select n, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', n * 100, current_date,
-             jsonb_build_object('endereco', 'Rua Ajuste 56 ' || n, 'numero', '1', 'bairro', 'Teste', 'cidade', 'Natal', 'uf', 'RN')
-        from unnest(array[${NUMEROS.join(', ')}]) as n;
-    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
-      select p.id, 1, 'S56A', 'Mesa Teste 56 ajustes', 1 from public.pedidos p where p.numero in (${NUMEROS.join(', ')});
-  `)
-  for (const [n, lat] of Object.entries(PONTOS)) {
-    if (lat === null) continue
-    await bd.exec(`
-      insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte)
-        select md5(lower(plt_privado.fn_endereco_geocodificavel(ee.endereco, ee.numero, ee.bairro, ee.cidade, ee.uf, ee.cep))),
-               'teste 56 ajustes', ${lat}, -35.25428, true, 'geoapify'
-          from public.pedidos p join plt_privado.vw_endereco_entrega ee on ee.pedido_id = p.id
-         where p.numero = ${n}
-      on conflict (chave) do update set latitude = excluded.latitude, longitude = excluded.longitude, resolvido = true`)
-  }
-  const CAM = (await umA(`select id::int as id from public.plt_caminhoes where placa = 'TST5657'`)).id
-  const DIA = (await umA(`select (((now() at time zone 'America/Fortaleza')::date) + 3)::text as d`)).d
-  const OUTRO = (await umA(`select (((now() at time zone 'America/Fortaleza')::date) + 4)::text as d`)).d
-  const K = {}
-  for (const n of NUMEROS) {
-    K[n] = (await umA(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
-                        where c.tipo = 'pedido' and p.numero = ${n}`)).id
-  }
-  const [A, B, C, D, N, S, L] = [K[956201], K[956202], K[956203], K[956204], K[956205], K[956206], K[956207]]
-  const LOG = E40.logistica
-  const rota = async (dia, r = 1) => (await bd.query(`
-      select k || ':' || coalesce(o::text, '-') as k from (
-        select 'p' || pr.card_id as k, pr.ordem as o from public.plt_programacoes pr
-         where pr.data_entrega = '${dia}' and pr.caminhao_id = ${CAM} and pr.rota = ${r}
-        union all
-        select 'a' || pa.id, pa.ordem from public.plt_paradas_avulsas pa
-         where pa.data_entrega = '${dia}' and pa.caminhao_id = ${CAM} and pa.rota = ${r} and pa.removida_em is null
-      ) x order by o nulls last, k`)).rows.map((x) => x.k)
-  const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
-  const seq = (...ks) => ks.map((k, i) => `${k}:${i + 1}`)
-  const prog = (card, dia, r = 1) => logadoA(LOG, `select public.plt_fn_programar_entrega(${card}, '${dia}', ${CAM}, ${r})`)
-
-  // a rota de destino: A, B, C, D (ordem salva, de propósito na ordem da linha)
-  await logadoA(LOG, `select public.plt_fn_programar_rota('${DIA}', ${CAM}, array[${A}, ${B}, ${C}, ${D}]::bigint[], array[${A}, ${B}, ${C}, ${D}]::bigint[], 1)`)
-  conferir(igual(await rota(DIA), seq(`p${A}`, `p${B}`, `p${C}`, `p${D}`)), 'cenário: a rota de 4 paradas com a ordem salva', JSON.stringify(await rota(DIA)))
-  // o N está noutra rota (a de origem: N e L)
-  await logadoA(LOG, `select public.plt_fn_programar_rota('${OUTRO}', ${CAM}, array[${N}, ${L}]::bigint[], array[${L}, ${N}]::bigint[], 1)`)
-  await logadoA(LOG, `select public.plt_fn_programar_entrega(${N}, '${DIA}', ${CAM}, 1, '[{"t":"p","id":${L}}]'::jsonb)`)
-  conferir(igual(await rota(DIA), seq(`p${A}`, `p${B}`, `p${N}`, `p${C}`, `p${D}`)),
-    'reprogramado para uma rota de 4 paradas: entra no MEIO (entre B e C, onde o caminho aumenta menos); os outros só abrem espaço',
-    JSON.stringify(await rota(DIA)))
-  conferir(igual(await rota(OUTRO), [`p${L}:1`]), 'e a rota de origem fica com a ordem que a tela mostrava (sem mexer)', JSON.stringify(await rota(OUTRO)))
-
-  titulo('SESSAO-56 (ajustes) · 1 · sem ponto vai para o fim e fica; o mais longe vai para depois do último')
-
-  await prog(S, DIA)
-  conferir(igual(await rota(DIA), seq(`p${A}`, `p${B}`, `p${N}`, `p${C}`, `p${D}`, `p${S}`)),
-    'programado sozinho SEM ponto no mapa: entra no fim, com lugar guardado', JSON.stringify(await rota(DIA)))
-  // o ponto do S chega depois (perto do A): nada se move sozinho
-  await bd.exec(`
-    insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte)
-      select md5(lower(plt_privado.fn_endereco_geocodificavel(ee.endereco, ee.numero, ee.bairro, ee.cidade, ee.uf, ee.cep))),
-             'teste 56 ajustes', -5.79, -35.25428, true, 'geoapify'
-        from public.pedidos p join plt_privado.vw_endereco_entrega ee on ee.pedido_id = p.id
-       where p.numero = 956206`)
-  await logadoA(LOG, `select public.plt_fn_programar_entrega(${L}, '${DIA}', ${CAM}, 1, '[]'::jsonb)`)
-  // o L (−5,60, além do D) empata entre "C–D" e "D–S" (o S agora tem ponto perto do A: a
-  // volta passa por ele) — o que se prova é que ninguém pula e ninguém troca de lugar
-  const comL = await rota(DIA)
-  conferir(comL.at(-1) === `p${S}:7` && igual(comL.filter((k) => !k.startsWith(`p${L}:`)).map((k) => k.split(':')[0]),
-      [`p${A}`, `p${B}`, `p${N}`, `p${C}`, `p${D}`, `p${S}`]) && igual(comL.map((k) => k.split(':')[1]), ['1', '2', '3', '4', '5', '6', '7']),
-    'o ponto do sem-ponto chegou (perto da fábrica) e ele NÃO pula — segue o último; o L entrou sem trocar a ordem dos outros',
-    JSON.stringify(comL))
-  conferir((await rota(OUTRO)).length === 0, 'a rota de origem que esvaziou fica vazia, sem erro')
-
-  titulo('SESSAO-56 (ajustes) · 1 · rota vazia; ordem salva fora da linha; mesma rota não muda nada')
-
-  const [V1, V2, V3, V4, V5] = [K[956208], K[956209], K[956210], K[956211], K[956212]]
-  await prog(V1, DIA, 3)
-  conferir(igual(await rota(DIA, 3), [`p${V1}:1`]), 'programado sozinho numa rota vazia: é a 1ª parada (ordem 1)', JSON.stringify(await rota(DIA, 3)))
-  // a ordem salva pela pessoa NÃO segue a linha (V5 longe primeiro): o novo abre espaço sem desfazê-la
-  await logadoA(LOG, `select public.plt_fn_programar_rota('${DIA}', ${CAM}, array[${V2}, ${V5}]::bigint[], null::bigint[], 3)`)
-  await logadoA(LOG, `select public.plt_fn_ordenar_rota('${DIA}', ${CAM}, array[${V5}, ${V1}, ${V2}]::bigint[], 3)`)
-  await prog(V3, DIA, 3)
-  const r3 = await rota(DIA, 3)
-  const sem3 = r3.filter((k) => !k.startsWith(`p${V3}:`)).map((k) => k.split(':')[0])
-  conferir(igual(sem3, [`p${V5}`, `p${V1}`, `p${V2}`]) && r3.length === 4 && igual(r3.map((k) => k.split(':')[1]), ['1', '2', '3', '4']),
-    'a ordem que a pessoa salvou (o longe primeiro) continua igual entre os que já estavam; só o novo entrou, e as posições ficaram 1, 2, 3, 4',
-    JSON.stringify(r3))
-  // reprogramar para a MESMA rota: nada muda (nem a ordem dele)
-  const antesMesma = await rota(DIA, 3)
-  await prog(V3, DIA, 3)
-  conferir(igual(await rota(DIA, 3), antesMesma), 'reprogramar para a mesma rota não mexe em nada', JSON.stringify(await rota(DIA, 3)))
-
-  titulo('SESSAO-56 (ajustes) · 1 · rota antiga sem ordem salva: primeiro a ordem que a tela mostrava, depois a inserção')
-
-  // a rota 4 nasce sem ordem (o site de antes) com A (−5,80), D (−5,65) e V4 (−5,70)
-  await logadoA(LOG, `select public.plt_fn_desprogramar_entrega(${A})`)
-  await logadoA(LOG, `select public.plt_fn_desprogramar_entrega(${C})`)
-  await logadoA(LOG, `select public.plt_fn_desprogramar_entrega(${D})`)
-  // pela numeração a tela mostraria A, D, V4; pelo mais perto da fábrica ela mostra A, V4, D — e é esta
-  await logadoA(LOG, `select public.plt_fn_programar_rota('${DIA}', ${CAM}, array[${D}, ${A}, ${V4}]::bigint[], null::bigint[], 4)`)
-  conferir((await rota(DIA, 4)).every((k) => k.endsWith(':-')), 'cenário: a rota antiga, sem ordem nenhuma (o site de antes)', JSON.stringify(await rota(DIA, 4)))
-  await prog(C, DIA, 4)
-  // a tela mostrava: A (−5,80) → V4 (−5,70) → D (−5,65); o C (−5,70) entra junto do V4 (mesmo ponto)
-  const r4 = (await rota(DIA, 4)).map((k) => k.split(':')[0])
-  const semC = r4.filter((k) => k !== `p${C}`)
-  conferir(igual(semC, [`p${A}`, `p${V4}`, `p${D}`]) && (await rota(DIA, 4)).every((k) => !k.endsWith(':-'))
-      && Math.abs(r4.indexOf(`p${C}`) - r4.indexOf(`p${V4}`)) === 1,
-    'rota sem ordem salva: grava primeiro a ordem que a tela mostrava (o mais perto da fábrica, não a numeração) e põe o novo no lugar mais perto',
-    JSON.stringify(await rota(DIA, 4)))
-
-  titulo('SESSAO-56 (ajustes) · 1 · parada avulsa nova; a montagem com vários pedidos continua como era')
-
-  const parada = async (auth, lat, ordem = 'null') => (await logadoA(auth, `select public.plt_fn_parada_avulsa_salvar(null, '${DIA}', ${CAM}, 1,
-      'Buscar ferragem 56 ajustes', 'Rua de Teste, 56, Natal', ${lat === null ? 'null, null' : `${lat}, -35.25428`}, null, ${ordem}) as r`))[0].r.id
-  // a rota 1 agora: B, N, L, S (A, C e D saíram para a rota 4)
-  const antesParada = (await rota(DIA)).map((k) => k.split(':')[0])
-  const pa = await parada(LOG, -5.74)
-  const comParada = (await rota(DIA)).map((k) => k.split(':')[0])
-  conferir(igual(comParada.filter((k) => k !== `a${pa}`), antesParada) && comParada.indexOf(`a${pa}`) === comParada.indexOf(`p${B}`) + 1,
-    'parada avulsa nova SEM a ordem da tela: entra no lugar mais perto (logo depois do B); os outros não trocam entre si',
-    JSON.stringify(await rota(DIA)))
-  const pb = await parada(LOG, null)
-  conferir((await rota(DIA)).at(-1) === `a${pb}:${(await rota(DIA)).length}`, 'parada nova sem ponto no mapa: no fim, com lugar guardado', JSON.stringify(await rota(DIA)))
-  const pc = await parada(LOG, -5.74, `'[{"t":"nova"}]'::jsonb`).catch((e) => e.message)
-  conferir(typeof pc === 'string' && /rota mudou/.test(pc), 'com a ordem da tela, vale a ordem da tela (como sempre — a lista que não bate é recusada)', String(pc))
-  // a montagem com vários pedidos (sem a ordem: o site de antes) — o bloco novo fica sem lugar, como era
-  await logadoA(LOG, `select public.plt_fn_desprogramar_entrega(${V2})`)
-  await logadoA(LOG, `select public.plt_fn_desprogramar_entrega(${V5})`)
-  const antesMont = await rota(DIA)
-  await logadoA(LOG, `select public.plt_fn_programar_rota('${DIA}', ${CAM}, array[${V2}, ${V5}]::bigint[], null::bigint[], 1)`)
-  const depoisMont = await rota(DIA)
-  conferir(igual(depoisMont.slice(0, antesMont.length), antesMont) && igual(depoisMont.slice(antesMont.length).map((k) => k.split(':')[1]), ['-', '-']),
-    'a montagem com vários pedidos numa rota que já existe: o que estava fica como estava e o bloco novo NÃO ganha o lugar mais perto (como era)',
-    JSON.stringify(depoisMont))
-  // a montagem com paradas: a marca vale também para a parada nova da montagem
-  const mp = (await logadoA(LOG, `select public.plt_fn_programar_rota_paradas('${DIA}', ${CAM}, 1, '{}'::bigint[],
-      '[{"k":"m1","titulo":"Parada da montagem","endereco":"Rua X, 1","latitude":-5.74,"longitude":-35.25428}]'::jsonb, null) as r`))[0].r
-  const idMp = Number(mp.paradas.m1)
-  conferir((await rota(DIA)).includes(`a${idMp}:${Number((await umA(`select ordem from public.plt_paradas_avulsas where id = ${idMp}`)).ordem)}`)
-      && (await umA(`select ordem from public.plt_paradas_avulsas where id = ${idMp}`)).ordem
-         === (await umA(`select max(o)::int as m from (select ordem as o from public.plt_programacoes where data_entrega = '${DIA}' and caminhao_id = ${CAM} and rota = 1
-                          union all select ordem from public.plt_paradas_avulsas where data_entrega = '${DIA}' and caminhao_id = ${CAM} and rota = 1 and removida_em is null) x`)).m,
-    'a parada nova da MONTAGEM entra no fim do que está salvo (como era), não no lugar mais perto', JSON.stringify(await rota(DIA)))
-  conferir((await umA(`select coalesce(current_setting('plt.rota_montagem', true), '') as m`)).m !== 'on',
-    'a marca da montagem não fica ligada depois do gesto')
-
-  const privA = await umA(`
-    select has_function_privilege('authenticated', 'plt_privado.fn_rota_inserir(date, bigint, integer, text, bigint)', 'execute')
-           or has_function_privilege('authenticated', 'plt_privado.fn_distancia_km(double precision, double precision, double precision, double precision)', 'execute') as maquina,
-           abs(plt_privado.fn_distancia_km(-5.848, -35.25428, -5.80, -35.25428) - 5.3373) < 0.001 as distancia`)
-  conferir(!privA.maquina && privA.distancia, 'a maquinaria fica fora da API; a distância é a mesma conta da tela (haversine, 5,337 km da fábrica ao A)', JSON.stringify(privA))
-
-  titulo('SESSAO-56 (ajustes) · 1 · o plano da leitura com volume (Lei de desempenho)')
-
-  // a leitura da porta nova: os itens de UMA rota com o ponto do pedido (cache do mapa
-  // pela chave única). Volume: 20 mil paradas noutros dias; as duas pernas pelo índice da rota.
-  await bd.exec(`
-    insert into public.plt_paradas_avulsas (data_entrega, caminhao_id, rota, ordem, titulo, endereco, criada_por)
-      select current_date - (g % 2000), ${CAM}, 1 + (g % 3), g % 10, 'Parada de volume', 'Rua de Volume, 1',
-             (select id from public.plt_usuarios order by id limit 1)
-        from generate_series(1, 20000) g;
-    analyze public.plt_paradas_avulsas; analyze public.plt_programacoes; analyze public.plt_geocache;
-  `)
-  const LEITURA = `
-    select 'p' || pr.card_id as k, pr.ordem, g.latitude, g.longitude
-      from public.plt_programacoes pr
-      join public.plt_cards pc on pc.id = pr.card_id
-      join public.pedidos p on p.id = pc.pedido_id
-      left join plt_privado.vw_endereco_entrega ee on ee.pedido_id = p.id
-      left join public.plt_geocache g
-             on g.chave = md5(lower(plt_privado.fn_endereco_geocodificavel(ee.endereco, ee.numero, ee.bairro, ee.cidade, ee.uf, ee.cep)))
-     where pr.data_entrega = '${DIA}' and pr.caminhao_id = ${CAM} and pr.rota = 1
-       and pc.entrega_evento_id is null and pc.arquivado_em is null
-    union all
-    select 'a' || pa.id, pa.ordem, pa.latitude, pa.longitude
-      from public.plt_paradas_avulsas pa
-     where pa.data_entrega = '${DIA}' and pa.caminhao_id = ${CAM} and pa.rota = 1 and pa.removida_em is null`
-  const planoA = (await bd.query(`explain (analyze, format json) ${LEITURA}`)).rows[0]['QUERY PLAN'][0]
-  await bd.exec('set local enable_seqscan = off')
-  const forcadoA = JSON.stringify((await bd.query(`explain (format json) ${LEITURA}`)).rows[0]['QUERY PLAN'][0])
-  await bd.exec('set local enable_seqscan = on')
-  const indicesA = (t) => [...new Set([...t.matchAll(/"Index Name":"([a-z_0-9]+)"/g)].map((m) => m[1]))]
-  const usados = indicesA(JSON.stringify(planoA))
-  conferir(usados.includes('plt_paradas_avulsas_rota_idx') && indicesA(forcadoA).some((n) => n.startsWith('plt_programacoes_'))
-      && indicesA(forcadoA).includes('plt_geocache_pkey') && planoA['Execution Time'] < 50,
-    `a leitura da rota com o ponto vai pelos índices (rota das paradas, programações e a chave do cache — 20 mil paradas → ${planoA['Execution Time']} ms; orçamento 50 ms)`,
-    JSON.stringify({ usados, forcado: indicesA(forcadoA) }))
-  // o gesto inteiro (reprogramar com a inserção) com a rota cheia de volume ao lado
-  const t0 = performance.now()
-  await logadoA(LOG, `select public.plt_fn_programar_entrega(${V3}, '${DIA}', ${CAM}, 1, '[]'::jsonb)`)
-  const ms = performance.now() - t0
-  conferir(ms < 200, `reprogramar com a inserção (rota de ${(await rota(DIA)).length} paradas, 20 mil paradas noutros dias): ${ms.toFixed(1)} ms no banco de teste`)
-} finally {
-  await bd.exec('rollback')
-  await comoA('')
-}
-} // fim do bloco SESSAO-56 (ajustes) · item 1
-
-{ // escopo próprio (E-70)
-titulo('SESSAO-56 (ajustes) · 2 · o aviso no sino com a busca de endereço fora há 1 hora — uma vez por queda')
-
-await bd.exec(await readFile(path.join(MIGRATIONS, '20261124120000_plt_aviso_busca_fora.sql'), 'utf8'))
-const umB = async (sql) => (await bd.query(sql)).rows[0]
-await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
-await bd.exec('begin')
-try {
-  const estado = (foraHaMin, avisado = false) => bd.exec(`
-    insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte, rota)
-      values ('estado:busca-de-endereco', '(estado da busca de endereço — não é um endereço)', null, null, false, 'estado',
-              jsonb_build_object('fora_desde', ${foraHaMin === null ? 'null' : `to_jsonb(now() - interval '${foraHaMin} minutes')`}, 'avisado', ${avisado}))
-    on conflict (chave) do update set rota = excluded.rota`)
-  const avisos = async () => (await umB(`select count(*)::int as n from public.plt_notificacoes where tipo = 'busca_endereco_fora'`)).n
-  const avisar = async () => (await umB(`select public.plt_fn_busca_fora_avisar() as r`)).r
-  await bd.exec(`delete from public.plt_notificacoes where tipo = 'busca_endereco_fora'`)
-
-  conferir((await avisar()) === false && (await avisos()) === 0, 'sem a linha do estado (a busca nunca caiu): não avisa')
-  await estado(59)
-  conferir((await avisar()) === false && (await avisos()) === 0, 'a busca recusando há 59 min: não avisa')
-  await estado(61)
-  const deu = await avisar()
-  const n1 = await avisos()
-  const quem = await umB(`
-    select bool_and(plt_privado.fn_aviso_publico_de('logistica', n.destinatario_id)) as so_logistica,
-           count(*) filter (where u.papel = 'admin')::int as admins,
-           count(*) filter (where u.papel <> 'admin')::int as outros,
-           min(n.titulo) as titulo, min(n.corpo) as corpo
-      from public.plt_notificacoes n join public.plt_usuarios u on u.id = n.destinatario_id
-     where n.tipo = 'busca_endereco_fora'`)
-  const marcado = await umB(`select (rota ->> 'avisado')::boolean as a from public.plt_geocache where chave = 'estado:busca-de-endereco'`)
-  conferir(deu === true && n1 > 0 && quem.so_logistica && quem.admins > 0 && quem.outros > 0 && marcado.a === true,
-    'com 61 min avisa: admin e logística recebem, e a linha do estado fica marcada "já avisado"', JSON.stringify({ deu, n1, quem: { ...quem, corpo: undefined } }))
-  conferir(/^A busca de endereço está fora desde \d\d\/\d\d às \d\d:\d\d\. Os pontos novos no mapa precisam ser marcados à mão em Editar endereço\.$/.test(quem.corpo)
-      && quem.titulo === 'Busca de endereço fora do ar',
-    'o texto é o do pedido, em português de gente, com o dia e a hora da queda', quem.corpo)
-  conferir((await avisar()) === false && (await avisos()) === n1, 'a 2ª chamada não avisa de novo (uma vez por queda)')
-  // voltou (a função grava fora_desde nulo e avisado falso) e caiu de novo
-  await estado(null)
-  conferir((await avisar()) === false && (await avisos()) === n1, 'a busca voltou: não avisa')
-  await estado(10)
-  conferir((await avisar()) === false, 'caiu de novo há 10 min: ainda não')
-  await estado(65)
-  conferir((await avisar()) === true && (await avisos()) === n1 * 2, 'depois de voltar e cair de novo, a nova queda avisa outra vez')
-  const catalogo = await umB(`select publico, obrigatorio, erro from plt_privado.fn_avisos_catalogo() where tipo = 'busca_endereco_fora'`)
-  const privB = await umB(`
-    select has_function_privilege('service_role', 'public.plt_fn_busca_fora_avisar()', 'execute') as servico,
-           has_function_privilege('authenticated', 'public.plt_fn_busca_fora_avisar()', 'execute')
-           or has_function_privilege('anon', 'public.plt_fn_busca_fora_avisar()', 'execute') as navegador`)
-  conferir(catalogo?.publico === 'logistica' && catalogo.erro === false && privB.servico && !privB.navegador,
-    'o aviso está no catálogo (público logística — dá para desligar em Configurações → Avisos) e a porta é só da função da busca', JSON.stringify({ catalogo, privB }))
-} finally {
-  await bd.exec('rollback')
-}
-} // fim do bloco SESSAO-56 (ajustes) · item 2
-
-// ============================================================================
-// Ajuste de 24/11 (migration 20261124130000 — validação dos endereços da
-// SESSAO-57, "Sim, corrija"): a aba "Programar" sabe que o ponto é aproximado.
-// A porta dos sem programação passa a devolver cep, geo_manual e geo_aproximado
-// com a mesma regra de "Já programadas" — sem isso o cartão não avisava.
-// ============================================================================
-{ // escopo próprio (E-70)
-titulo('Ajuste 24/11 · a aba Programar traz o ponto aproximado, o ponto à mão e o CEP')
-
-await bd.exec(await readFile(path.join(MIGRATIONS, '20261124130000_plt_candidatos_ponto_aproximado.sql'), 'utf8'))
-const umP = async (sql) => (await bd.query(sql)).rows[0]
-const comoP = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
-const candidatos = async () => {
-  await comoP(E40.logistica)
-  const r = (await umP(`select public.plt_fn_programacao_candidatos(null, null, null, null, null, 'numero', 200) as c`)).c
-  await comoP('')
-  return r.itens
-}
-await bd.exec('begin')
-try {
-  const antes = await candidatos()
-  const alvo = antes.find((i) => i.geo_chave)
-  conferir(!!alvo, 'há um pedido sem programação com endereço para o teste', JSON.stringify(antes.length))
-  const cepVisao = (await umP(`select cep from plt_privado.vw_endereco_entrega where pedido_id = ${alvo.pedido_id}`))?.cep ?? null
-  const gravar = (fonte) => bd.exec(`
-    insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte)
-      values ('${alvo.geo_chave}', 'teste', -5.805398, -35.2080905, true, '${fonte}')
-    on conflict (chave) do update set fonte = excluded.fonte, latitude = excluded.latitude, longitude = excluded.longitude, resolvido = true`)
-  const doAlvo = async () => (await candidatos()).find((i) => i.card_id === alvo.card_id)
-  await gravar('aprox_cidade')
-  const aprox = await doAlvo()
-  await gravar('manual')
-  const mao = await doAlvo()
-  await gravar('geoapify')
-  const rua = await doAlvo()
-  conferir(aprox?.geo_aproximado === 'cidade' && aprox.geo_manual === false && aprox.latitude === -5.805398
-      && mao?.geo_manual === true && mao.geo_aproximado === null
-      && rua?.geo_manual === false && rua.geo_aproximado === null
-      && 'cep' in aprox && aprox.cep === cepVisao,
-    'o ponto do centro da cidade chega à aba Programar como aproximado (o cartão avisa "Ajustar o pino"); o marcado à mão e o de rua não; o CEP vem junto (para conferir o pino)',
-    JSON.stringify({ aprox: aprox && { a: aprox.geo_aproximado, m: aprox.geo_manual, cep: aprox.cep }, mao: mao && [mao.geo_aproximado, mao.geo_manual], rua: rua && [rua.geo_aproximado, rua.geo_manual], cepVisao }))
-  const priv = await umP(`select has_function_privilege('anon', 'public.plt_fn_programacao_candidatos(text, text, text, text, text, text, integer)', 'execute') as anon,
-                                 has_function_privilege('authenticated', 'public.plt_fn_programacao_candidatos(text, text, text, text, text, text, integer)', 'execute') as logado`)
-  conferir(!priv.anon && priv.logado, 'a porta continua só para quem tem login', JSON.stringify(priv))
-} finally {
-  await bd.exec('rollback')
-}
-} // fim do bloco Ajuste 24/11
-
-
-
-
-// ============================================================================
 // SESSAO-52 (migration 20261118100000): DATAS E TEXTOS CERTOS — a busca geral, o
 // detalhe da devolução e a lista de pedidos pela MESMA data de entrega (a
 // projeção do card do pedido — D-276 item 4).
@@ -27333,6 +26736,602 @@ titulo('SESSAO-54 · Comercial · a tabela de clientes ordena o resultado INTEIR
   }
 }
 } // fim do bloco SESSAO-54
+
+
+// ============================================================================
+// SESSAO-56 · bloco B (migration 20261124100000 — pedido do dono, 23/11): A
+// ORDEM DA ROTA NÃO SE MEXE SOZINHA — tirar um pedido, reprogramar ou remover
+// uma parada tira SÓ aquele item; os outros ficam na ordem que a tela mostrava
+// (ela vai junto no gesto); o pedido que entra numa rota vai para o fim
+// guardado; o site de antes (sem a ordem) segue funcionando.
+// Faixa só deste bloco: pedidos 956101–956108 · caminhão TST5656 · entregador
+// …5631 (CPF 56700000001).
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-56 · B · a rota nasce com a ordem guardada; tirar um pedido não mexe nos outros')
+
+const um56 = async (sql) => (await bd.query(sql)).rows[0]
+const como56 = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const logado56 = async (auth, sql) => {
+  await como56(auth)
+  await bd.exec('savepoint l56')
+  try {
+    await bd.exec('set role authenticated')
+    const linhas = (await bd.query(sql)).rows
+    await bd.exec('reset role')
+    await bd.exec('release savepoint l56')
+    return linhas
+  } catch (erro) {
+    await bd.exec('rollback to savepoint l56')
+    await bd.exec('reset role')
+    throw new Error(`logado56: ${erro.message}`)
+  }
+}
+const recusa56 = async (auth, sql, descricao, padrao) => {
+  await como56(auth)
+  await bd.exec('savepoint s56')
+  try {
+    await bd.exec('set role authenticated')
+    await bd.exec(sql)
+    conferir(false, descricao, 'a operação passou, e não devia')
+  } catch (erro) {
+    conferir(padrao.test(erro.message), descricao, erro.message)
+  } finally {
+    await bd.exec('rollback to savepoint s56')
+    await bd.exec('reset role')
+  }
+}
+const ENT56 = '00000000-0000-0000-0000-000000005631'
+await como56('')
+await bd.exec('begin')
+try {
+  const NUMEROS = [956101, 956102, 956103, 956104, 956105, 956106, 956107, 956108]
+  await bd.exec(`
+    insert into public.plt_usuarios (nome, email, cpf, usuario, papel, auth_user_id, modulos)
+      values ('Entregador 56', 'ent56@teste.com', '56700000001', 'ent.56', 'operador', '${ENT56}', array['entregas']);
+    insert into public.plt_caminhoes (nome, placa) values ('Baú 56', 'TST5656');
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista)
+      select n, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', n * 100, current_date
+        from unnest(array[${NUMEROS.join(', ')}]) as n;
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+      select p.id, 1, 'S56B', 'Mesa Teste 56', 1 from public.pedidos p where p.numero in (${NUMEROS.join(', ')});
+  `)
+  const CAM = (await um56(`select id::int as id from public.plt_caminhoes where placa = 'TST5656'`)).id
+  const HOJE = (await um56(`select ((now() at time zone 'America/Fortaleza')::date)::text as d`)).d
+  const AMANHA = (await um56(`select (((now() at time zone 'America/Fortaleza')::date) + 1)::text as d`)).d
+  const card = async (n) => (await um56(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                                          where c.tipo = 'pedido' and p.numero = ${n}`)).id
+  const K = []
+  for (const n of NUMEROS) K.push(await card(n))
+  const [K1, K2, K3, K4, K5, K6, K7, K8] = K
+  const LOG = E40.logistica
+  // a rota (dia, rota) como o banco guarda: "p<card>:<ordem>" na ordem
+  const rota = async (dia, r = 1) => (await bd.query(`
+      select k || ':' || coalesce(o::text, '-') as k from (
+        select 'p' || pr.card_id as k, pr.ordem as o from public.plt_programacoes pr
+         where pr.data_entrega = '${dia}' and pr.caminhao_id = ${CAM} and pr.rota = ${r}
+        union all
+        select 'a' || pa.id, pa.ordem from public.plt_paradas_avulsas pa
+         where pa.data_entrega = '${dia}' and pa.caminhao_id = ${CAM} and pa.rota = ${r} and pa.removida_em is null
+      ) x order by o nulls last, k`)).rows.map((x) => x.k)
+  const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+  const refs = (...ks) => `'${JSON.stringify(ks.map((k) => ({ t: k[0], id: Number(k.slice(1)) })))}'::jsonb`
+
+  // o site de ANTES programa sem mandar a ordem: continua como era (a rota fica sem ordem)
+  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}, ${K2}, ${K3}]::bigint[], null::bigint[], 1)`)
+  conferir((await rota(HOJE)).length === 3 && (await rota(HOJE)).every((k) => k.endsWith(':-')),
+    'programar sem mandar a ordem (o site de antes) segue como era: a rota fica sem ordem — o banco não inventa uma',
+    JSON.stringify(await rota(HOJE)))
+  // o site NOVO manda sempre a ordem da tela
+  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K4}]::bigint[], array[${K3}, ${K1}, ${K2}, ${K4}]::bigint[], 1)`)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K1}:2`, `p${K2}:3`, `p${K4}:4`]),
+    'programar mandando a ordem da tela: o que já estava fica na ordem pedida e o novo no fim', JSON.stringify(await rota(HOJE)))
+
+  // tirar o 2º com a ordem que fica: só ele sai, os outros renumeram na MESMA sequência
+  const logsAntes = (await um56(`select count(*)::int as n from public.plt_logs_atividade where acao = 'programacao_removida'`)).n
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, ${refs(`p${K3}`, `p${K2}`, `p${K4}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K2}:2`, `p${K4}:3`]),
+    'tirar um pedido com a ordem que fica: os outros seguem na mesma sequência (3º vira 2º, 4º vira 3º)', JSON.stringify(await rota(HOJE)))
+  conferir((await um56(`select count(*)::int as n from public.plt_logs_atividade where acao = 'programacao_removida'`)).n === logsAntes + 1,
+    'o tirar continua deixando a sua linha na trilha')
+
+  titulo('SESSAO-56 · B · a rota ANTIGA sem ordem salva ganha a ordem no próprio gesto de tirar')
+
+  await bd.exec(`update public.plt_programacoes set ordem = null where data_entrega = '${HOJE}' and caminhao_id = ${CAM} and rota = 1`)
+  conferir((await rota(HOJE)).every((k) => k.endsWith(':-')), 'cenário: a rota de antes desta sessão, sem ordem nenhuma')
+  // a tela mostrava K4, K3, K2 (a sugestão daquele instante); tira o K3
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K3}, ${refs(`p${K4}`, `p${K2}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K2}:2`]),
+    'a ordem que a tela mostrava (menos o que saiu) fica gravada — a rota não recalcula depois', JSON.stringify(await rota(HOJE)))
+
+  // o site de antes (sem a lista): tira e não mexe em mais nada
+  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K1}, ${K3}]::bigint[], array[${K4}, ${K2}, ${K1}, ${K3}]::bigint[], 1)`)
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K2})`)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K1}:3`, `p${K3}:4`]),
+    'sem a lista (o site de antes): o pedido sai e os outros ficam como estavam (com o buraco — a tela numera 1, 2, 3)', JSON.stringify(await rota(HOJE)))
+
+  // a lista não bate com a rota: recusa — e nada sai
+  await recusa56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, ${refs(`p${K4}`, `p${K3}`, `p${K8}`)})`,
+    'a lista traz um pedido que não está mais na rota: "a rota mudou noutra tela"', /rota mudou noutra tela/)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K1}:3`, `p${K3}:4`]), 'e o pedido NÃO saiu (tudo ou nada)', JSON.stringify(await rota(HOJE)))
+  await recusa56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, ${refs(`p${K4}`, `p${K3}`, `p${K1}`)})`,
+    'a lista com o próprio pedido que está saindo: recusada', /rota mudou noutra tela/)
+  await recusa56(LOG, `select public.plt_fn_desprogramar_entrega(${K1}, '{"t":"p"}'::jsonb)`,
+    'a ordem num formato torto: recusada com o porquê', /formato/)
+  await recusa56(LOG, `select public.plt_fn_rota_ordenar('${HOJE}', ${CAM}, 1, ${refs(`p${K4}`, `p${K3}`)})`,
+    'e o "Salvar ordem" continua recusando a lista que não bate com a rota', /rota mudou/)
+
+  // a página não trouxe a rota inteira: o que faltou na lista fica depois, na ordem dele
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K4}, ${refs(`p${K3}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K1}:2`]),
+    'a tela não mostrava a rota inteira: o que ela mandou vem primeiro e o resto fica depois, na ordem que tinha', JSON.stringify(await rota(HOJE)))
+
+  titulo('SESSAO-56 · B · reprogramar: a rota de origem não se mexe; na de destino o pedido entra no fim')
+
+  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K2}, ${K4}]::bigint[], array[${K3}, ${K1}, ${K2}, ${K4}]::bigint[], 1)`)
+  // K1 vai para amanhã (rota vazia): origem K3, K2, K4; destino nasce com a ordem 1
+  await logado56(LOG, `select public.plt_fn_programar_entrega(${K1}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K3}`, `p${K2}`, `p${K4}`)})`)
+  // ↪️ SESSAO-56 (ajustes — resposta do dono): no destino o pedido ganha lugar guardado (rota vazia = 1ª)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K2}:2`, `p${K4}:3`]) && igual(await rota(AMANHA), [`p${K1}:1`]),
+    'reprogramar para outro dia: na origem os outros ficam na mesma sequência; no destino (vazio) ele é a 1ª parada, com lugar guardado',
+    JSON.stringify([await rota(HOJE), await rota(AMANHA)]))
+  await logado56(LOG, `select public.plt_fn_programar_entrega(${K2}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K3}`, `p${K4}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K4}:2`]) && (await rota(AMANHA)).length === 2,
+    'o seguinte também sai sem mexer em quem ficou na origem', JSON.stringify([await rota(HOJE), await rota(AMANHA)]))
+  await logado56(LOG, `select public.plt_fn_ordenar_rota('${AMANHA}', ${CAM}, array[${K1}, ${K2}]::bigint[], 1)`)
+  // reprogramar para a MESMA rota (nada mudou): a lista é ignorada e a ordem fica
+  await logado56(LOG, `select public.plt_fn_programar_entrega(${K2}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K8}`)})`)
+  conferir(igual(await rota(AMANHA), [`p${K1}:1`, `p${K2}:2`]), 'reprogramar para a mesma rota não muda nada (nem a ordem dele, nem a dos outros)', JSON.stringify(await rota(AMANHA)))
+  // a lista de origem que não bate: recusa e o pedido não muda de rota
+  await recusa56(LOG, `select public.plt_fn_programar_entrega(${K3}, '${AMANHA}', ${CAM}, 1, ${refs(`p${K4}`, `p${K8}`)})`,
+    'reprogramar com a lista de origem que não bate: recusado', /rota mudou noutra tela/)
+  conferir(igual(await rota(HOJE), [`p${K3}:1`, `p${K4}:2`]), 'e o pedido continua na rota de origem', JSON.stringify(await rota(HOJE)))
+  // sem a lista (o site de antes): a origem fica como estava
+  await logado56(LOG, `select public.plt_fn_programar_entrega(${K3}, '${AMANHA}', ${CAM}, 2)`)
+  conferir(igual(await rota(HOJE), [`p${K4}:2`]) && igual(await rota(AMANHA, 2), [`p${K3}:1`]),
+    'reprogramar sem a lista (o site de antes): a origem não é tocada (nem renumerada); no destino vazio ele é a 1ª', JSON.stringify([await rota(HOJE), await rota(AMANHA, 2)]))
+
+  titulo('SESSAO-56 · B · a parada avulsa: tirar só ela; o entregador tira a dele sem mexer na ordem da logística')
+
+  await logado56(LOG, `select public.plt_fn_programar_rota('${HOJE}', ${CAM}, array[${K6}, ${K7}]::bigint[], array[${K4}, ${K6}, ${K7}]::bigint[], 1)`)
+  const ENTID = (await um56(`select id from public.plt_usuarios where usuario = 'ent.56'`)).id
+  await bd.exec(`insert into public.plt_programacao_equipes (data_entrega, caminhao_id, rota, usuario_id) values ('${HOJE}', ${CAM}, 1, '${ENTID}')`)
+  const por = async (auth, ordem, ponto = '-5.8, -35.2') => (await logado56(auth, `select public.plt_fn_parada_avulsa_salvar(null, '${HOJE}', ${CAM}, 1,
+      'Buscar ferragem 56', 'Rua de Teste, 56, Natal', ${ponto}, null, ${ordem}) as r`))[0].r.id
+  const a1 = await por(LOG, `'[{"t":"p","id":${K4}},{"t":"nova"},{"t":"p","id":${K6}},{"t":"p","id":${K7}}]'::jsonb`)
+  // ↪️ SESSAO-56 (ajustes): sem a ordem da tela, a parada vai para o lugar mais perto —
+  // sem ponto no mapa, para o fim (o cenário deste bloco é "a do entregador no fim")
+  const a2 = await por(ENT56, 'null', 'null, null')
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `a${a1}:2`, `p${K6}:3`, `p${K7}:4`, `a${a2}:5`]), 'cenário: dois pedidos, a parada da logística no meio e a do entregador no fim', JSON.stringify(await rota(HOJE)))
+  await recusa56(ENT56, `select public.plt_fn_parada_avulsa_remover(${a2}, ${refs(`p${K6}`, `p${K4}`, `a${a1}`, `p${K7}`)})`,
+    'o entregador tirando a parada dele NÃO consegue trocar a ordem dos pedidos de carona', /só muda o lugar da parada/)
+  await logado56(ENT56, `select public.plt_fn_parada_avulsa_remover(${a2}, ${refs(`p${K4}`, `a${a1}`, `p${K6}`, `p${K7}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `a${a1}:2`, `p${K6}:3`, `p${K7}:4`]),
+    'o entregador tira a parada dele: só ela sai, o resto fica onde estava', JSON.stringify(await rota(HOJE)))
+  await logado56(LOG, `select public.plt_fn_parada_avulsa_remover(${a1}, ${refs(`p${K4}`, `p${K6}`, `p${K7}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K6}:2`, `p${K7}:3`]),
+    'a logística tira a parada do meio: os pedidos fecham a fila na mesma sequência', JSON.stringify(await rota(HOJE)))
+  await logado56(LOG, `select public.plt_fn_parada_avulsa_remover(${a1}, ${refs(`p${K8}`)})`)
+  conferir(igual(await rota(HOJE), [`p${K4}:1`, `p${K6}:2`, `p${K7}:3`]), 'o toque repetido no "tirar a parada" não faz nada (nem confere a lista)')
+  // o último item sai: a lista vazia é aceita
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K6}, ${refs(`p${K4}`, `p${K7}`)})`)
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K7}, ${refs(`p${K4}`)})`)
+  await logado56(LOG, `select public.plt_fn_desprogramar_entrega(${K4}, '[]'::jsonb)`)
+  conferir((await rota(HOJE)).length === 0, 'tirar até o último: a rota fica vazia, sem erro')
+
+  const priv = await um56(`
+    select to_regprocedure('public.plt_fn_desprogramar_entrega(bigint)') is null
+           and to_regprocedure('public.plt_fn_parada_avulsa_remover(bigint)') is null
+           and to_regprocedure('public.plt_fn_programar_entrega(bigint, date, bigint, integer)') is null as velhas_sairam,
+           has_function_privilege('authenticated', 'public.plt_fn_desprogramar_entrega(bigint, jsonb)', 'execute')
+           and has_function_privilege('authenticated', 'public.plt_fn_parada_avulsa_remover(bigint, jsonb)', 'execute')
+           and has_function_privilege('authenticated', 'public.plt_fn_programar_entrega(bigint, date, bigint, integer, jsonb)', 'execute') as logado_chama,
+           has_function_privilege('anon', 'public.plt_fn_desprogramar_entrega(bigint, jsonb)', 'execute')
+           or has_function_privilege('anon', 'public.plt_fn_parada_avulsa_remover(bigint, jsonb)', 'execute')
+           or has_function_privilege('anon', 'public.plt_fn_programar_entrega(bigint, date, bigint, integer, jsonb)', 'execute') as anonimo_chama,
+           has_function_privilege('authenticated', 'plt_privado.fn_rota_ordem_que_fica(date, bigint, integer, jsonb)', 'execute') as maquina`)
+  conferir(priv.velhas_sairam && priv.logado_chama && !priv.anonimo_chama && !priv.maquina,
+    'as assinaturas antigas saíram (uma porta só de cada); as novas para quem está logado; a maquinaria fora da API', JSON.stringify(priv))
+  await recusa56(ENT56, `select public.plt_fn_desprogramar_entrega(${K5}, '[]'::jsonb)`,
+    'o entregador continua sem poder tirar pedido da programação', /logística/)
+
+  titulo('SESSAO-56 · B · o plano da leitura nova com volume (Lei de desempenho)')
+
+  // a leitura que a porta nova faz: os itens de UMA rota (dia + caminhão + rota).
+  // Volume: 20 mil paradas em 2 mil dias (×100 do que uma fábrica junta em anos)
+  // e as programações do banco de teste — as duas pernas têm de ir pelo índice da rota.
+  await bd.exec(`
+    insert into public.plt_paradas_avulsas (data_entrega, caminhao_id, rota, ordem, titulo, endereco, criada_por)
+      select current_date - (g % 2000), ${CAM}, 1 + (g % 3), g % 10, 'Parada de volume', 'Rua de Volume, 1',
+             (select id from public.plt_usuarios where usuario = 'ent.56')
+        from generate_series(1, 20000) g;
+    analyze public.plt_paradas_avulsas;
+    analyze public.plt_programacoes;
+  `)
+  const LEITURA = `
+    select 'p' || pr.card_id as k, pr.ordem as o
+      from public.plt_programacoes pr
+      join public.plt_cards pc on pc.id = pr.card_id
+     where pr.data_entrega = '${HOJE}' and pr.caminhao_id = ${CAM} and pr.rota = 1
+       and pc.entrega_evento_id is null and pc.arquivado_em is null
+    union all
+    select 'a' || pa.id, pa.ordem
+      from public.plt_paradas_avulsas pa
+     where pa.data_entrega = '${HOJE}' and pa.caminhao_id = ${CAM} and pa.rota = 1
+       and pa.removida_em is null`
+  const plano = (await bd.query(`explain (analyze, format json) ${LEITURA}`)).rows[0]['QUERY PLAN'][0]
+  const texto56 = JSON.stringify(plano)
+  await bd.exec('set local enable_seqscan = off')
+  const forcado = JSON.stringify((await bd.query(`explain (format json) ${LEITURA}`)).rows[0]['QUERY PLAN'][0])
+  await bd.exec('set local enable_seqscan = on')
+  const indices56 = (t) => [...new Set([...t.matchAll(/"Index Name":"([a-z_0-9]+)"/g)].map((m) => m[1]))]
+  // as programações do banco de teste são poucas (o planejador varre, e está certo): para
+  // elas a prova é o índice da rota EXISTIR com as três colunas na frente e o plano saber usá-lo
+  const idxProg = (await bd.query(`select indexdef from pg_indexes
+      where schemaname = 'public' and tablename = 'plt_programacoes'`)).rows.map((x) => x.indexdef)
+  const temIndiceDaRota = idxProg.some((d) => /\(data_entrega, caminhao_id, rota/.test(d))
+  conferir(indices56(texto56).includes('plt_paradas_avulsas_rota_idx') && temIndiceDaRota
+      && indices56(forcado).some((n) => n.startsWith('plt_programacoes_')) && plano['Execution Time'] < 50,
+    `a leitura da rota vai pelo índice da rota (20 mil paradas → ${plano['Execution Time']} ms; o orçamento da porta é 50 ms) e as programações têm o índice (dia, caminhão, rota)`,
+    JSON.stringify({ plano: indices56(texto56), forcado: indices56(forcado), idxProg }))
+} finally {
+  await bd.exec('rollback')
+  await como56('')
+}
+} // fim do bloco SESSAO-56 · B
+
+// ============================================================================
+// SESSAO-56 (ajustes) · item 1 (migration 20261124110000 — resposta do dono,
+// 23/11 22:55): QUEM ENTRA NUMA ROTA QUE JÁ EXISTE VAI PARA O LUGAR MAIS PERTO
+// — reprogramar, programar sozinho e a parada avulsa nova sem a ordem da tela;
+// os outros não mudam de ordem entre si; sem ponto = fim; rota vazia = 1ª;
+// rota sem ordem salva = primeiro a ordem que a tela mostrava. A montagem com
+// vários pedidos continua como era (o bloco no fim).
+// · item 2 (migration 20261124120000): o aviso no sino com a busca de endereço
+// fora há 1 hora ou mais — uma vez por queda.
+// Faixa só deste bloco: pedidos 956201–956212 · caminhão TST5657.
+// Os pontos ficam numa linha reta ao norte da fábrica (mesma longitude):
+// A −5,80 · B −5,75 · C −5,70 · D −5,65 · N −5,725 (entre B e C) · L −5,60.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('SESSAO-56 (ajustes) · 1 · reprogramado vai para o lugar mais perto; os outros não trocam entre si')
+
+// blocos de cima reaplicam a parada avulsa da 50 (sem a inserção) — a deste bloco de novo
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261124110000_plt_entra_no_lugar_mais_perto.sql'), 'utf8'))
+
+const umA = async (sql) => (await bd.query(sql)).rows[0]
+const comoA = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const logadoA = async (auth, sql) => {
+  await comoA(auth)
+  await bd.exec('savepoint la')
+  try {
+    await bd.exec('set role authenticated')
+    const linhas = (await bd.query(sql)).rows
+    await bd.exec('reset role')
+    await bd.exec('release savepoint la')
+    return linhas
+  } catch (erro) {
+    await bd.exec('rollback to savepoint la')
+    await bd.exec('reset role')
+    throw new Error(`logadoA: ${erro.message}`)
+  }
+}
+await comoA('')
+await bd.exec('begin')
+try {
+  // pedido → ponto (null = sem ponto no mapa)
+  const PONTOS = {
+    956201: -5.80, 956202: -5.75, 956203: -5.70, 956204: -5.65, // A B C D
+    956205: -5.725,                                             // N (entre B e C)
+    956206: null,                                               // S (sem ponto)
+    956207: -5.60,                                              // L (além de D)
+    956208: -5.725, 956209: -5.80, 956210: -5.75, 956211: -5.70, 956212: -5.65,
+  }
+  const NUMEROS = Object.keys(PONTOS).map(Number)
+  await bd.exec(`
+    insert into public.plt_caminhoes (nome, placa) values ('Baú 56 ajustes', 'TST5657');
+    insert into public.pedidos (numero, cliente_id, situacao, origem, tiny_id, data_prevista, endereco_entrega)
+      select n, (select id from public.clientes order by id limit 1), 'Preparando envio', 'webhook', n * 100, current_date,
+             jsonb_build_object('endereco', 'Rua Ajuste 56 ' || n, 'numero', '1', 'bairro', 'Teste', 'cidade', 'Natal', 'uf', 'RN')
+        from unnest(array[${NUMEROS.join(', ')}]) as n;
+    insert into public.pedido_itens (pedido_id, seq, codigo, descricao, quantidade)
+      select p.id, 1, 'S56A', 'Mesa Teste 56 ajustes', 1 from public.pedidos p where p.numero in (${NUMEROS.join(', ')});
+  `)
+  for (const [n, lat] of Object.entries(PONTOS)) {
+    if (lat === null) continue
+    await bd.exec(`
+      insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte)
+        select md5(lower(plt_privado.fn_endereco_geocodificavel(ee.endereco, ee.numero, ee.bairro, ee.cidade, ee.uf, ee.cep))),
+               'teste 56 ajustes', ${lat}, -35.25428, true, 'geoapify'
+          from public.pedidos p join plt_privado.vw_endereco_entrega ee on ee.pedido_id = p.id
+         where p.numero = ${n}
+      on conflict (chave) do update set latitude = excluded.latitude, longitude = excluded.longitude, resolvido = true`)
+  }
+  const CAM = (await umA(`select id::int as id from public.plt_caminhoes where placa = 'TST5657'`)).id
+  const DIA = (await umA(`select (((now() at time zone 'America/Fortaleza')::date) + 3)::text as d`)).d
+  const OUTRO = (await umA(`select (((now() at time zone 'America/Fortaleza')::date) + 4)::text as d`)).d
+  const K = {}
+  for (const n of NUMEROS) {
+    K[n] = (await umA(`select c.id::int as id from public.plt_cards c join public.pedidos p on p.id = c.pedido_id
+                        where c.tipo = 'pedido' and p.numero = ${n}`)).id
+  }
+  const [A, B, C, D, N, S, L] = [K[956201], K[956202], K[956203], K[956204], K[956205], K[956206], K[956207]]
+  const LOG = E40.logistica
+  const rota = async (dia, r = 1) => (await bd.query(`
+      select k || ':' || coalesce(o::text, '-') as k from (
+        select 'p' || pr.card_id as k, pr.ordem as o from public.plt_programacoes pr
+         where pr.data_entrega = '${dia}' and pr.caminhao_id = ${CAM} and pr.rota = ${r}
+        union all
+        select 'a' || pa.id, pa.ordem from public.plt_paradas_avulsas pa
+         where pa.data_entrega = '${dia}' and pa.caminhao_id = ${CAM} and pa.rota = ${r} and pa.removida_em is null
+      ) x order by o nulls last, k`)).rows.map((x) => x.k)
+  const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+  const seq = (...ks) => ks.map((k, i) => `${k}:${i + 1}`)
+  const prog = (card, dia, r = 1) => logadoA(LOG, `select public.plt_fn_programar_entrega(${card}, '${dia}', ${CAM}, ${r})`)
+
+  // a rota de destino: A, B, C, D (ordem salva, de propósito na ordem da linha)
+  await logadoA(LOG, `select public.plt_fn_programar_rota('${DIA}', ${CAM}, array[${A}, ${B}, ${C}, ${D}]::bigint[], array[${A}, ${B}, ${C}, ${D}]::bigint[], 1)`)
+  conferir(igual(await rota(DIA), seq(`p${A}`, `p${B}`, `p${C}`, `p${D}`)), 'cenário: a rota de 4 paradas com a ordem salva', JSON.stringify(await rota(DIA)))
+  // o N está noutra rota (a de origem: N e L)
+  await logadoA(LOG, `select public.plt_fn_programar_rota('${OUTRO}', ${CAM}, array[${N}, ${L}]::bigint[], array[${L}, ${N}]::bigint[], 1)`)
+  await logadoA(LOG, `select public.plt_fn_programar_entrega(${N}, '${DIA}', ${CAM}, 1, '[{"t":"p","id":${L}}]'::jsonb)`)
+  conferir(igual(await rota(DIA), seq(`p${A}`, `p${B}`, `p${N}`, `p${C}`, `p${D}`)),
+    'reprogramado para uma rota de 4 paradas: entra no MEIO (entre B e C, onde o caminho aumenta menos); os outros só abrem espaço',
+    JSON.stringify(await rota(DIA)))
+  conferir(igual(await rota(OUTRO), [`p${L}:1`]), 'e a rota de origem fica com a ordem que a tela mostrava (sem mexer)', JSON.stringify(await rota(OUTRO)))
+
+  titulo('SESSAO-56 (ajustes) · 1 · sem ponto vai para o fim e fica; o mais longe vai para depois do último')
+
+  await prog(S, DIA)
+  conferir(igual(await rota(DIA), seq(`p${A}`, `p${B}`, `p${N}`, `p${C}`, `p${D}`, `p${S}`)),
+    'programado sozinho SEM ponto no mapa: entra no fim, com lugar guardado', JSON.stringify(await rota(DIA)))
+  // o ponto do S chega depois (perto do A): nada se move sozinho
+  await bd.exec(`
+    insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte)
+      select md5(lower(plt_privado.fn_endereco_geocodificavel(ee.endereco, ee.numero, ee.bairro, ee.cidade, ee.uf, ee.cep))),
+             'teste 56 ajustes', -5.79, -35.25428, true, 'geoapify'
+        from public.pedidos p join plt_privado.vw_endereco_entrega ee on ee.pedido_id = p.id
+       where p.numero = 956206`)
+  await logadoA(LOG, `select public.plt_fn_programar_entrega(${L}, '${DIA}', ${CAM}, 1, '[]'::jsonb)`)
+  // o L (−5,60, além do D) empata entre "C–D" e "D–S" (o S agora tem ponto perto do A: a
+  // volta passa por ele) — o que se prova é que ninguém pula e ninguém troca de lugar
+  const comL = await rota(DIA)
+  conferir(comL.at(-1) === `p${S}:7` && igual(comL.filter((k) => !k.startsWith(`p${L}:`)).map((k) => k.split(':')[0]),
+      [`p${A}`, `p${B}`, `p${N}`, `p${C}`, `p${D}`, `p${S}`]) && igual(comL.map((k) => k.split(':')[1]), ['1', '2', '3', '4', '5', '6', '7']),
+    'o ponto do sem-ponto chegou (perto da fábrica) e ele NÃO pula — segue o último; o L entrou sem trocar a ordem dos outros',
+    JSON.stringify(comL))
+  conferir((await rota(OUTRO)).length === 0, 'a rota de origem que esvaziou fica vazia, sem erro')
+
+  titulo('SESSAO-56 (ajustes) · 1 · rota vazia; ordem salva fora da linha; mesma rota não muda nada')
+
+  const [V1, V2, V3, V4, V5] = [K[956208], K[956209], K[956210], K[956211], K[956212]]
+  await prog(V1, DIA, 3)
+  conferir(igual(await rota(DIA, 3), [`p${V1}:1`]), 'programado sozinho numa rota vazia: é a 1ª parada (ordem 1)', JSON.stringify(await rota(DIA, 3)))
+  // a ordem salva pela pessoa NÃO segue a linha (V5 longe primeiro): o novo abre espaço sem desfazê-la
+  await logadoA(LOG, `select public.plt_fn_programar_rota('${DIA}', ${CAM}, array[${V2}, ${V5}]::bigint[], null::bigint[], 3)`)
+  await logadoA(LOG, `select public.plt_fn_ordenar_rota('${DIA}', ${CAM}, array[${V5}, ${V1}, ${V2}]::bigint[], 3)`)
+  await prog(V3, DIA, 3)
+  const r3 = await rota(DIA, 3)
+  const sem3 = r3.filter((k) => !k.startsWith(`p${V3}:`)).map((k) => k.split(':')[0])
+  conferir(igual(sem3, [`p${V5}`, `p${V1}`, `p${V2}`]) && r3.length === 4 && igual(r3.map((k) => k.split(':')[1]), ['1', '2', '3', '4']),
+    'a ordem que a pessoa salvou (o longe primeiro) continua igual entre os que já estavam; só o novo entrou, e as posições ficaram 1, 2, 3, 4',
+    JSON.stringify(r3))
+  // reprogramar para a MESMA rota: nada muda (nem a ordem dele)
+  const antesMesma = await rota(DIA, 3)
+  await prog(V3, DIA, 3)
+  conferir(igual(await rota(DIA, 3), antesMesma), 'reprogramar para a mesma rota não mexe em nada', JSON.stringify(await rota(DIA, 3)))
+
+  titulo('SESSAO-56 (ajustes) · 1 · rota antiga sem ordem salva: primeiro a ordem que a tela mostrava, depois a inserção')
+
+  // a rota 4 nasce sem ordem (o site de antes) com A (−5,80), D (−5,65) e V4 (−5,70)
+  await logadoA(LOG, `select public.plt_fn_desprogramar_entrega(${A})`)
+  await logadoA(LOG, `select public.plt_fn_desprogramar_entrega(${C})`)
+  await logadoA(LOG, `select public.plt_fn_desprogramar_entrega(${D})`)
+  // pela numeração a tela mostraria A, D, V4; pelo mais perto da fábrica ela mostra A, V4, D — e é esta
+  await logadoA(LOG, `select public.plt_fn_programar_rota('${DIA}', ${CAM}, array[${D}, ${A}, ${V4}]::bigint[], null::bigint[], 4)`)
+  conferir((await rota(DIA, 4)).every((k) => k.endsWith(':-')), 'cenário: a rota antiga, sem ordem nenhuma (o site de antes)', JSON.stringify(await rota(DIA, 4)))
+  await prog(C, DIA, 4)
+  // a tela mostrava: A (−5,80) → V4 (−5,70) → D (−5,65); o C (−5,70) entra junto do V4 (mesmo ponto)
+  const r4 = (await rota(DIA, 4)).map((k) => k.split(':')[0])
+  const semC = r4.filter((k) => k !== `p${C}`)
+  conferir(igual(semC, [`p${A}`, `p${V4}`, `p${D}`]) && (await rota(DIA, 4)).every((k) => !k.endsWith(':-'))
+      && Math.abs(r4.indexOf(`p${C}`) - r4.indexOf(`p${V4}`)) === 1,
+    'rota sem ordem salva: grava primeiro a ordem que a tela mostrava (o mais perto da fábrica, não a numeração) e põe o novo no lugar mais perto',
+    JSON.stringify(await rota(DIA, 4)))
+
+  titulo('SESSAO-56 (ajustes) · 1 · parada avulsa nova; a montagem com vários pedidos continua como era')
+
+  const parada = async (auth, lat, ordem = 'null') => (await logadoA(auth, `select public.plt_fn_parada_avulsa_salvar(null, '${DIA}', ${CAM}, 1,
+      'Buscar ferragem 56 ajustes', 'Rua de Teste, 56, Natal', ${lat === null ? 'null, null' : `${lat}, -35.25428`}, null, ${ordem}) as r`))[0].r.id
+  // a rota 1 agora: B, N, L, S (A, C e D saíram para a rota 4)
+  const antesParada = (await rota(DIA)).map((k) => k.split(':')[0])
+  const pa = await parada(LOG, -5.74)
+  const comParada = (await rota(DIA)).map((k) => k.split(':')[0])
+  conferir(igual(comParada.filter((k) => k !== `a${pa}`), antesParada) && comParada.indexOf(`a${pa}`) === comParada.indexOf(`p${B}`) + 1,
+    'parada avulsa nova SEM a ordem da tela: entra no lugar mais perto (logo depois do B); os outros não trocam entre si',
+    JSON.stringify(await rota(DIA)))
+  const pb = await parada(LOG, null)
+  conferir((await rota(DIA)).at(-1) === `a${pb}:${(await rota(DIA)).length}`, 'parada nova sem ponto no mapa: no fim, com lugar guardado', JSON.stringify(await rota(DIA)))
+  const pc = await parada(LOG, -5.74, `'[{"t":"nova"}]'::jsonb`).catch((e) => e.message)
+  conferir(typeof pc === 'string' && /rota mudou/.test(pc), 'com a ordem da tela, vale a ordem da tela (como sempre — a lista que não bate é recusada)', String(pc))
+  // a montagem com vários pedidos (sem a ordem: o site de antes) — o bloco novo fica sem lugar, como era
+  await logadoA(LOG, `select public.plt_fn_desprogramar_entrega(${V2})`)
+  await logadoA(LOG, `select public.plt_fn_desprogramar_entrega(${V5})`)
+  const antesMont = await rota(DIA)
+  await logadoA(LOG, `select public.plt_fn_programar_rota('${DIA}', ${CAM}, array[${V2}, ${V5}]::bigint[], null::bigint[], 1)`)
+  const depoisMont = await rota(DIA)
+  conferir(igual(depoisMont.slice(0, antesMont.length), antesMont) && igual(depoisMont.slice(antesMont.length).map((k) => k.split(':')[1]), ['-', '-']),
+    'a montagem com vários pedidos numa rota que já existe: o que estava fica como estava e o bloco novo NÃO ganha o lugar mais perto (como era)',
+    JSON.stringify(depoisMont))
+  // a montagem com paradas: a marca vale também para a parada nova da montagem
+  const mp = (await logadoA(LOG, `select public.plt_fn_programar_rota_paradas('${DIA}', ${CAM}, 1, '{}'::bigint[],
+      '[{"k":"m1","titulo":"Parada da montagem","endereco":"Rua X, 1","latitude":-5.74,"longitude":-35.25428}]'::jsonb, null) as r`))[0].r
+  const idMp = Number(mp.paradas.m1)
+  conferir((await rota(DIA)).includes(`a${idMp}:${Number((await umA(`select ordem from public.plt_paradas_avulsas where id = ${idMp}`)).ordem)}`)
+      && (await umA(`select ordem from public.plt_paradas_avulsas where id = ${idMp}`)).ordem
+         === (await umA(`select max(o)::int as m from (select ordem as o from public.plt_programacoes where data_entrega = '${DIA}' and caminhao_id = ${CAM} and rota = 1
+                          union all select ordem from public.plt_paradas_avulsas where data_entrega = '${DIA}' and caminhao_id = ${CAM} and rota = 1 and removida_em is null) x`)).m,
+    'a parada nova da MONTAGEM entra no fim do que está salvo (como era), não no lugar mais perto', JSON.stringify(await rota(DIA)))
+  conferir((await umA(`select coalesce(current_setting('plt.rota_montagem', true), '') as m`)).m !== 'on',
+    'a marca da montagem não fica ligada depois do gesto')
+
+  const privA = await umA(`
+    select has_function_privilege('authenticated', 'plt_privado.fn_rota_inserir(date, bigint, integer, text, bigint)', 'execute')
+           or has_function_privilege('authenticated', 'plt_privado.fn_distancia_km(double precision, double precision, double precision, double precision)', 'execute') as maquina,
+           abs(plt_privado.fn_distancia_km(-5.848, -35.25428, -5.80, -35.25428) - 5.3373) < 0.001 as distancia`)
+  conferir(!privA.maquina && privA.distancia, 'a maquinaria fica fora da API; a distância é a mesma conta da tela (haversine, 5,337 km da fábrica ao A)', JSON.stringify(privA))
+
+  titulo('SESSAO-56 (ajustes) · 1 · o plano da leitura com volume (Lei de desempenho)')
+
+  // a leitura da porta nova: os itens de UMA rota com o ponto do pedido (cache do mapa
+  // pela chave única). Volume: 20 mil paradas noutros dias; as duas pernas pelo índice da rota.
+  await bd.exec(`
+    insert into public.plt_paradas_avulsas (data_entrega, caminhao_id, rota, ordem, titulo, endereco, criada_por)
+      select current_date - (g % 2000), ${CAM}, 1 + (g % 3), g % 10, 'Parada de volume', 'Rua de Volume, 1',
+             (select id from public.plt_usuarios order by id limit 1)
+        from generate_series(1, 20000) g;
+    analyze public.plt_paradas_avulsas; analyze public.plt_programacoes; analyze public.plt_geocache;
+  `)
+  const LEITURA = `
+    select 'p' || pr.card_id as k, pr.ordem, g.latitude, g.longitude
+      from public.plt_programacoes pr
+      join public.plt_cards pc on pc.id = pr.card_id
+      join public.pedidos p on p.id = pc.pedido_id
+      left join plt_privado.vw_endereco_entrega ee on ee.pedido_id = p.id
+      left join public.plt_geocache g
+             on g.chave = md5(lower(plt_privado.fn_endereco_geocodificavel(ee.endereco, ee.numero, ee.bairro, ee.cidade, ee.uf, ee.cep)))
+     where pr.data_entrega = '${DIA}' and pr.caminhao_id = ${CAM} and pr.rota = 1
+       and pc.entrega_evento_id is null and pc.arquivado_em is null
+    union all
+    select 'a' || pa.id, pa.ordem, pa.latitude, pa.longitude
+      from public.plt_paradas_avulsas pa
+     where pa.data_entrega = '${DIA}' and pa.caminhao_id = ${CAM} and pa.rota = 1 and pa.removida_em is null`
+  const planoA = (await bd.query(`explain (analyze, format json) ${LEITURA}`)).rows[0]['QUERY PLAN'][0]
+  await bd.exec('set local enable_seqscan = off')
+  const forcadoA = JSON.stringify((await bd.query(`explain (format json) ${LEITURA}`)).rows[0]['QUERY PLAN'][0])
+  await bd.exec('set local enable_seqscan = on')
+  const indicesA = (t) => [...new Set([...t.matchAll(/"Index Name":"([a-z_0-9]+)"/g)].map((m) => m[1]))]
+  const usados = indicesA(JSON.stringify(planoA))
+  conferir(usados.includes('plt_paradas_avulsas_rota_idx') && indicesA(forcadoA).some((n) => n.startsWith('plt_programacoes_'))
+      && indicesA(forcadoA).includes('plt_geocache_pkey') && planoA['Execution Time'] < 50,
+    `a leitura da rota com o ponto vai pelos índices (rota das paradas, programações e a chave do cache — 20 mil paradas → ${planoA['Execution Time']} ms; orçamento 50 ms)`,
+    JSON.stringify({ usados, forcado: indicesA(forcadoA) }))
+  // o gesto inteiro (reprogramar com a inserção) com a rota cheia de volume ao lado
+  const t0 = performance.now()
+  await logadoA(LOG, `select public.plt_fn_programar_entrega(${V3}, '${DIA}', ${CAM}, 1, '[]'::jsonb)`)
+  const ms = performance.now() - t0
+  conferir(ms < 200, `reprogramar com a inserção (rota de ${(await rota(DIA)).length} paradas, 20 mil paradas noutros dias): ${ms.toFixed(1)} ms no banco de teste`)
+} finally {
+  await bd.exec('rollback')
+  await comoA('')
+}
+} // fim do bloco SESSAO-56 (ajustes) · item 1
+
+{ // escopo próprio (E-70)
+titulo('SESSAO-56 (ajustes) · 2 · o aviso no sino com a busca de endereço fora há 1 hora — uma vez por queda')
+
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261124120000_plt_aviso_busca_fora.sql'), 'utf8'))
+const umB = async (sql) => (await bd.query(sql)).rows[0]
+await bd.exec(`select set_config('request.jwt.claim.sub', '', false)`)
+await bd.exec('begin')
+try {
+  const estado = (foraHaMin, avisado = false) => bd.exec(`
+    insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte, rota)
+      values ('estado:busca-de-endereco', '(estado da busca de endereço — não é um endereço)', null, null, false, 'estado',
+              jsonb_build_object('fora_desde', ${foraHaMin === null ? 'null' : `to_jsonb(now() - interval '${foraHaMin} minutes')`}, 'avisado', ${avisado}))
+    on conflict (chave) do update set rota = excluded.rota`)
+  const avisos = async () => (await umB(`select count(*)::int as n from public.plt_notificacoes where tipo = 'busca_endereco_fora'`)).n
+  const avisar = async () => (await umB(`select public.plt_fn_busca_fora_avisar() as r`)).r
+  await bd.exec(`delete from public.plt_notificacoes where tipo = 'busca_endereco_fora'`)
+
+  conferir((await avisar()) === false && (await avisos()) === 0, 'sem a linha do estado (a busca nunca caiu): não avisa')
+  await estado(59)
+  conferir((await avisar()) === false && (await avisos()) === 0, 'a busca recusando há 59 min: não avisa')
+  await estado(61)
+  const deu = await avisar()
+  const n1 = await avisos()
+  const quem = await umB(`
+    select bool_and(plt_privado.fn_aviso_publico_de('logistica', n.destinatario_id)) as so_logistica,
+           count(*) filter (where u.papel = 'admin')::int as admins,
+           count(*) filter (where u.papel <> 'admin')::int as outros,
+           min(n.titulo) as titulo, min(n.corpo) as corpo
+      from public.plt_notificacoes n join public.plt_usuarios u on u.id = n.destinatario_id
+     where n.tipo = 'busca_endereco_fora'`)
+  const marcado = await umB(`select (rota ->> 'avisado')::boolean as a from public.plt_geocache where chave = 'estado:busca-de-endereco'`)
+  conferir(deu === true && n1 > 0 && quem.so_logistica && quem.admins > 0 && quem.outros > 0 && marcado.a === true,
+    'com 61 min avisa: admin e logística recebem, e a linha do estado fica marcada "já avisado"', JSON.stringify({ deu, n1, quem: { ...quem, corpo: undefined } }))
+  conferir(/^A busca de endereço está fora desde \d\d\/\d\d às \d\d:\d\d\. Os pontos novos no mapa precisam ser marcados à mão em Editar endereço\.$/.test(quem.corpo)
+      && quem.titulo === 'Busca de endereço fora do ar',
+    'o texto é o do pedido, em português de gente, com o dia e a hora da queda', quem.corpo)
+  conferir((await avisar()) === false && (await avisos()) === n1, 'a 2ª chamada não avisa de novo (uma vez por queda)')
+  // voltou (a função grava fora_desde nulo e avisado falso) e caiu de novo
+  await estado(null)
+  conferir((await avisar()) === false && (await avisos()) === n1, 'a busca voltou: não avisa')
+  await estado(10)
+  conferir((await avisar()) === false, 'caiu de novo há 10 min: ainda não')
+  await estado(65)
+  conferir((await avisar()) === true && (await avisos()) === n1 * 2, 'depois de voltar e cair de novo, a nova queda avisa outra vez')
+  const catalogo = await umB(`select publico, obrigatorio, erro from plt_privado.fn_avisos_catalogo() where tipo = 'busca_endereco_fora'`)
+  const privB = await umB(`
+    select has_function_privilege('service_role', 'public.plt_fn_busca_fora_avisar()', 'execute') as servico,
+           has_function_privilege('authenticated', 'public.plt_fn_busca_fora_avisar()', 'execute')
+           or has_function_privilege('anon', 'public.plt_fn_busca_fora_avisar()', 'execute') as navegador`)
+  conferir(catalogo?.publico === 'logistica' && catalogo.erro === false && privB.servico && !privB.navegador,
+    'o aviso está no catálogo (público logística — dá para desligar em Configurações → Avisos) e a porta é só da função da busca', JSON.stringify({ catalogo, privB }))
+} finally {
+  await bd.exec('rollback')
+}
+} // fim do bloco SESSAO-56 (ajustes) · item 2
+
+
+// ============================================================================
+// Ajuste de 24/11 (migration 20261124130000 — validação dos endereços da
+// SESSAO-57, "Sim, corrija"): a aba "Programar" sabe que o ponto é aproximado.
+// A porta dos sem programação passa a devolver cep, geo_manual e geo_aproximado
+// com a mesma regra de "Já programadas" — sem isso o cartão não avisava.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('Ajuste 24/11 · a aba Programar traz o ponto aproximado, o ponto à mão e o CEP')
+
+await bd.exec(await readFile(path.join(MIGRATIONS, '20261124130000_plt_candidatos_ponto_aproximado.sql'), 'utf8'))
+const umP = async (sql) => (await bd.query(sql)).rows[0]
+const comoP = (auth) => bd.exec(`select set_config('request.jwt.claim.sub', '${auth ?? ''}', false)`)
+const candidatos = async () => {
+  await comoP(E40.logistica)
+  const r = (await umP(`select public.plt_fn_programacao_candidatos(null, null, null, null, null, 'numero', 200) as c`)).c
+  await comoP('')
+  return r.itens
+}
+await bd.exec('begin')
+try {
+  const antes = await candidatos()
+  const alvo = antes.find((i) => i.geo_chave)
+  conferir(!!alvo, 'há um pedido sem programação com endereço para o teste', JSON.stringify(antes.length))
+  const cepVisao = (await umP(`select cep from plt_privado.vw_endereco_entrega where pedido_id = ${alvo.pedido_id}`))?.cep ?? null
+  const gravar = (fonte) => bd.exec(`
+    insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte)
+      values ('${alvo.geo_chave}', 'teste', -5.805398, -35.2080905, true, '${fonte}')
+    on conflict (chave) do update set fonte = excluded.fonte, latitude = excluded.latitude, longitude = excluded.longitude, resolvido = true`)
+  const doAlvo = async () => (await candidatos()).find((i) => i.card_id === alvo.card_id)
+  await gravar('aprox_cidade')
+  const aprox = await doAlvo()
+  await gravar('manual')
+  const mao = await doAlvo()
+  await gravar('geoapify')
+  const rua = await doAlvo()
+  conferir(aprox?.geo_aproximado === 'cidade' && aprox.geo_manual === false && aprox.latitude === -5.805398
+      && mao?.geo_manual === true && mao.geo_aproximado === null
+      && rua?.geo_manual === false && rua.geo_aproximado === null
+      && 'cep' in aprox && aprox.cep === cepVisao,
+    'o ponto do centro da cidade chega à aba Programar como aproximado (o cartão avisa "Ajustar o pino"); o marcado à mão e o de rua não; o CEP vem junto (para conferir o pino)',
+    JSON.stringify({ aprox: aprox && { a: aprox.geo_aproximado, m: aprox.geo_manual, cep: aprox.cep }, mao: mao && [mao.geo_aproximado, mao.geo_manual], rua: rua && [rua.geo_aproximado, rua.geo_manual], cepVisao }))
+  const priv = await umP(`select has_function_privilege('anon', 'public.plt_fn_programacao_candidatos(text, text, text, text, text, text, integer)', 'execute') as anon,
+                                 has_function_privilege('authenticated', 'public.plt_fn_programacao_candidatos(text, text, text, text, text, text, integer)', 'execute') as logado`)
+  conferir(!priv.anon && priv.logado, 'a porta continua só para quem tem login', JSON.stringify(priv))
+} finally {
+  await bd.exec('rollback')
+}
+} // fim do bloco Ajuste 24/11
 
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
