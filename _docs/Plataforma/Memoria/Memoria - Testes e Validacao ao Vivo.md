@@ -153,3 +153,15 @@ tags: [memoria, aprendizado, tema/testes]
 ### E-319
 
 - [2026-11-24] **E-319** (Claude Code, SESSAO-56) · **`npm test` com servidor + navegador abertos estoura o tempo de 5 s** em telas pesadas (cada rodada falha em arquivos diferentes). *Correção:* rodar a bateria com a máquina livre e conferir as falhas isoladas + `git diff` antes de chamar de defeito.
+
+### A-264
+
+- [2026-11-24] **A-264** (Claude Code, SESSAO-57) · **Ver na tela uma função ainda não publicada:** simular a resposta dela dentro do navegador de teste (interceptar a chamada à função) — nada vai ao banco, e a tela é vista de verdade.
+
+### E-327
+
+- [2026-11-24] **E-327** (Claude Code, ajuste do CEP pelo navegador) · **`vitest run --root <repo>` rodou também os testes das worktrees guardadas dentro da pasta** (`.claude/worktrees/…`) — falhas que não eram desta entrega. *Correção:* `--exclude ".claude/**"`.
+
+### E-330
+
+- [2026-11-25] **E-330** (Claude Code, subida de 25/11) · **A bateria do banco tem uma prova que depende da hora:** "o fluxo do n8n conversa com o banco de ponta a ponta" (SESSAO-33) falha de madrugada — o lote da fila deixa a conta da fábrica de fora na janela de varredura dela (03:10–04:40, hora de Fortaleza), e o item da fábrica não sai no lote (às 03:20 de 25/11: 2.127 verdes, só esta vermelha; na subida de 24/11, de dia, verde). *Correção:* rodar a bateria de dia ou ler a vermelha contra a janela da fábrica antes de chamar de defeito; o certo é a prova fixar a hora (fica como dívida de teste).

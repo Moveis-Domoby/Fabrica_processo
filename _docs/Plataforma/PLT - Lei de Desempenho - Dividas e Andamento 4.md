@@ -42,6 +42,12 @@ tags: [plataforma, desempenho, dividas]
 - **Escrita idempotente:** a porta do aviso trava a linha e confere de novo (duas chamadas juntas não avisam duas vezes).
 - **Dívidas:** nenhuma nova. **Não medido:** o plano no banco vivo e LCP/INP.
 
+**Andamento (SESSAO-57 · o pino certo, e os ajustes de 24 e 25/11 — [[D-390 - A busca digitada so aceita rua ou casa o lugar vira nao achei|D-390]]…[[D-402 - O ponto do CEP e consultado pelo navegador|D-402]]):**
+- **1 requisição por tela:** "N pedidos com o pino a conferir" é conta na tela, com o que "Já programadas" já traz; a aba Programar ganhou o ponto aproximado e o CEP **na porta que já tinha** (nenhuma leitura nova); o selo "Entregue em parte" entra na mesma porta (subida de 25/11).
+- **Chamada externa:** a conferência do CEP roda só no clique de salvar, com tempo limite, e nunca bloqueia; o CEP pelo navegador tem tempo limite de 4 s, é lembrado uma vez por CEP na sessão e a falha não fica guardada.
+- **Escolha consciente (provisória [[D-395 - A busca digitada nao usa mais a memoria de buscas|D-395]]):** "Achar no mapa" deixou de usar a memória de buscas — uma consulta ao buscador por toque (a memória antiga tinha o bairro gravado como rua). Gesto da pessoa, não relógio.
+- **Dívidas:** nenhuma nova. **Não medido:** LCP/INP.
+
 | # | Dívida | Estado |
 |---|---|---|
 | 38 | **A lista de pedidos com duas portas** (SESSAO-52): a porta nova (com a hora do registro) e a antiga, que segue para o site de antes. | Aberta, pequena. **Caminho:** quando o retorno da porta antiga for mudado de vez, a hora entra nela e a porta nova sai. |

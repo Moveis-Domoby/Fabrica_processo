@@ -177,3 +177,7 @@ tags: [memoria, aprendizado, tema/processo]
 ### A-246
 
 - [2026-11-18] **A-246** (Claude Code, SESSAO-49) · **Classificar centenas de textos por palavra-chave: a manchete pesa mais, a palavra larga pesa menos, e o erro que sobra se resolve pelo índice.** A 1ª classificação das lições por tema (contagem simples de palavras) mandou tela para "banco" e shell para "Tiny"; melhorou com peso 3× para os primeiros 260 caracteres, peso por palavra (as estreitas — `rls`, `crlf`, `vercel` — valem 3; as largas — "tabela", "tela" — valem 1) e correção à mão onde importa (80 decisões, 19 blocos do banco). O que ficou no tema errado continua achável: o índice gerado diz em que nota cada id está, e mover a entrada de nota não quebra nada.
+
+### A-266
+
+- [2026-11-25] **A-266** (Claude Code, subida de 25/11) · **O mapa de uma área pode passar do teto só com a lista gerada** (a Logística com 53 provisórias: a parte gerada sozinha já passava de 15 KB — cortar sessões da mão não resolvia). *Forma:* o gerador do verificador mostra as provisórias só com a ligação (sem o título) **apenas** no mapa que passaria do teto, com a frase que aponta o índice das decisões; os outros mapas não mudam.

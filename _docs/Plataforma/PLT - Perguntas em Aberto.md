@@ -117,6 +117,19 @@ tags: [plataforma, descoberta, perguntas]
   - ✅ **itens 1 a 6 resolvidos em 2026-10-08** (SESSAO-30, migrations 57 e 58): 1 a regra dos fins de linha vale para toda origem e para o card criado lá · 2 peça livre do ESTOQUE só sai pela baixa do estoque · 3 o PCP libera só para setor de produção, numa transação (↩️ [[D-063 - Frete nao vira peca de producao o resto nasce no PCP e o PCP|D-63]]) · 4 o rótulo da entrada manual (o banco já devolvia a origem certa desde 28/09 — só a tela dizia "está pronta no estoque") · 5 a regra da peça numa função só, resumo = soma da lista · 6 peças sob medida e fora do catálogo com lista e baixa. Os itens 7 a 10 seguem pendentes (o 7 — a leitura de 30 s — sai na etapa 6 da SESSAO-30).
   - ↪️ 01/10: o dono decidiu tratar as pendências técnicas **depois** (a SESSAO-29 vem antes).
 
+## 🟦 O pino certo e o ponto do Google (24–25/11/2026)
+
+- **Q-73 · A lista "pino a conferir" reconhecer sempre o pino salvo no centro da cidade.** Hoje a conta é feita na tela e só reconhece o centro da cidade se a própria lista tiver um pedido ainda aproximado daquela cidade (o 13840 não apareceu). Para pegar sempre, o banco diria "este pino manual é igual ao ponto aproximado da cidade" na leitura que já existe (uma atualização pequena). Fazer? ([[handoff_2026_11_24_sessao57_pino_certo|handoff da 57]], seção 5)
+- **Q-74 · O ponto do Google na busca de endereços — as 7 decisões do planejamento** ([[handoff_2026_11_25_planejamento_ponto_do_google|planejamento de 25/11]], seção 7; nada codado):
+  1. O Google só liga junto com o mapa do Google (as regras dele mandam) — ou nada disto até a troca do mapa estar marcada.
+  2. Apagar o ponto vencido (30 dias): carona na rotina de madrugada que já existe, ou pelo fato da entrega/cancelamento com a madrugada de rede.
+  3. O "meio da rua" do Google conta como ponto? (proposta: vale se perto do CEP).
+  4. No dia de ligar, refazer de uma vez os pedidos vivos, ou só os novos e os aproximados.
+  5. Teto diário da chave (proposta: 500 consultas/dia).
+  6. Validação de endereço na entrada do pedido: entra no plano ou fica para depois.
+  7. O ponto real na entrega (o celular do entregador grava onde entregou): junto, depois ou não fazer.
+  - ⚠️ A conferir antes de codar: se as regras gerais do Google proíbem calcular a rota no serviço aberto com o ponto dele.
+
 ## Ver também
 
 [[PLT - Visao Geral]] · [[PLT - Decisoes de Produto]] · [[PLT - Requisitos]] · [[000 - ORDEM DAS SESSOES]] · [[PLT - Plano Uniao das Plataformas]]

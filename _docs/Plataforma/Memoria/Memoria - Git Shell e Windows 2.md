@@ -61,3 +61,7 @@ tags: [memoria, aprendizado, tema/git-shell]
 ### E-320
 
 - [2026-11-24] **E-320** (Claude Code, SESSAO-56) · **O print do navegador dos agentes caiu na raiz do repositório** (nome sem caminho) e entrou no `git status`. *Correção:* usar o caminho relativo da pasta de prints da sala.
+
+### E-329
+
+- [2026-11-25] **E-329** (Claude Code, subida de 25/11) · **Sexta reincidência do `cd`** ([[Memoria - Git Shell e Windows 1#E-74|E-74]]): um `cd` para a pasta temporária no meio de um comando de contagem. O app voltou a pasta da sessão (nada mexido), mas a regra é desde o 1º comando. *Correção:* variável com o caminho absoluto, sempre.

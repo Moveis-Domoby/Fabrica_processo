@@ -67,3 +67,11 @@ tags: [memoria, aprendizado, tema/front-react]
 ### E-308
 
 - [2026-11-18] **E-308** (Claude Code, SESSAO-55) · **Consulta semeada com validade curta relê sozinha quando a tela volta** (a porta responde do guardado; a dependente está vencida). *Correção:* validade infinita no pedaço semeado.
+
+### E-323
+
+- [2026-11-24] **E-323** (Claude Code, SESSAO-57) · **Conta feita "na tela" depende do que a tela tem:** reconhecer "o centro da cidade" pelos pedidos aproximados da própria lista falha quando não sobra nenhum aproximado nela (o 13840 não apareceu em "pino a conferir"). *Correção:* registrada como limite; o jeito certo é o banco dizer na leitura que já existe.
+
+### E-325
+
+- [2026-11-24] **E-325** (Claude Code, validação de 24/11) · **Duas portas para o mesmo cartão divergiram:** a aba Programar não mandava o ponto aproximado (a porta foi recriada numa sessão e a irmã de "Já programadas" não) — 8 pedidos no centro da cidade sem o aviso. *Correção:* toda lista que mostra o cartão traz os mesmos campos do cartão (ajuste de 24/11).

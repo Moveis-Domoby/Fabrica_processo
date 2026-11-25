@@ -83,3 +83,19 @@ tags: [memoria, aprendizado, tema/tiny-n8n]
 ### E-313
 
 - [2026-11-23] **E-313** (Claude Code, SESSAO-56) · **Serviço gratuito sem chave, chamado do servidor, foi cortado sem aviso** (o Nominatim) e a tela ficou dias "procurando no mapa…". *Correção:* toda dependência externa precisa de uma falha VISÍVEL na tela, não silenciosa — a busca ganhou buscador com chave, reserva, disjuntor, faixa e aviso no sino.
+
+### E-321
+
+- [2026-11-24] **E-321** (Claude Code, SESSAO-57) · **Resposta "de lugar" de um geocodificador (bairro, cidade, área do CEP) foi tratada como "achou"** no modo livre da busca digitada — o pino caiu a ~5 km da casa com cara de certo (o 13961). *Correção:* todo modo de busca separa rua/casa de lugar; lugar vira "não achei" + onde abrir o mapa.
+
+### E-322
+
+- [2026-11-24] **E-322** (Claude Code, SESSAO-57) · **Cache de busca gravado com a regra errada contamina as consultas seguintes** (o bairro gravado como se fosse a rua). *Correção:* quando a regra muda, o cache daquela classe de chave é ignorado ou versionado (as chaves da busca digitada deixaram de ser lidas).
+
+### E-324
+
+- [2026-11-24] **E-324** (Claude Code, validação de 24/11) · **O degrau de apoio também é cortado do servidor e falha em silêncio:** o serviço de CEP respondia HTTP 429 a todas as chamadas da função — a rua não achada caía no centro da cidade e a conferência do pino nunca perguntava, sem ninguém saber (a falha visível da [[#E-313|E-313]] cobria só o buscador principal). *Correção:* o CEP passou a ser consultado pelo navegador (o serviço aceita chamada direta), com o servidor de reserva.
+
+### E-326
+
+- [2026-11-24] **E-326** (Claude Code, validação de 24/11) · **"O CEP é de outra rua" estava errado:** o serviço de CEP e o mapa ainda chamam a rua pelo nome antigo. *Correção:* antes de dizer que o endereço está errado, conferir o nome oficial da rua do CEP nos Correios (ViaCEP).

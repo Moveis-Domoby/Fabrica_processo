@@ -137,3 +137,11 @@ tags: [memoria, aprendizado, tema/migrations]
 ### A-263
 
 - [2026-11-24] **A-263** (Claude Code, subida de 24/11) · **Juntar várias entregas que acrescentam blocos à bateria no mesmo ponto:** o git encaixa o bloco novo *depois do último bloco que já existe* sempre que o contexto bate — a ordem final dos blocos pode sair diferente da ordem dos cherry-picks **sem conflito nenhum**. Conferir a ordem pelos títulos dos blocos no fim e, para cada ramo, procurar o trecho inteiro da versão do próprio ramo no arquivo final (e cada linha que ele acrescentou no meio).
+
+### A-265
+
+- [2026-11-24] **A-265** (Claude Code, ajuste de 24/11) · **Antes de recriar uma porta por extração, procurar todas as frentes abertas que recriam a mesma porta** (as worktrees do Escritório e os ramos não juntados): a última a aplicar ganha, e a outra perde o que acrescentou em silêncio.
+
+### E-328
+
+- [2026-11-25] **E-328** (Claude Code, subida de 25/11) · **A bateria aplica pela ordem do NOME do arquivo; produção, pela ordem em que se aplica.** A atualização da 53 (18/11, nunca aplicada) recriava a porta de Programar a partir de uma versão anterior ao ajuste de 24/11 (já aplicado): na bateria a de 24/11 vencia e tudo passava; em produção, aplicar a da 53 depois apagaria o aviso do ponto aproximado. *Correção:* a porta saiu da atualização antiga e foi para uma NOVA, com data depois de todas as que estão no ar, feita da versão viva + só o que a entrega trazia; a bateria prova as duas coisas juntas e que a nova = a viva + o acréscimo; a conferência de antes de aplicar compara o corpo vivo com a versão mais nova dos arquivos. Toda subida que junta frentes antigas confere cada função que elas recriam contra as atualizações que entraram na main depois.

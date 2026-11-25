@@ -133,3 +133,9 @@ tags: [plataforma, design-system, modelo-de-sistema, design/logistica]
 - **O aviso âmbar do cartão com dois botões** (SESSAO-56): quando a busca de endereço não responde, o cartão do pedido mostra o aviso `atencao` com "Marcar no mapa" e "Tentar de novo" — no lugar do "procurando no mapa…" sem fim. Padrão reutilizável para serviço externo que falha.
 - **A faixa de serviço fora** (`FaixaBuscaFora`, SESSAO-56): faixa no topo de Rotas dizendo que a busca de endereço está fora e desde quando; some sozinha quando a busca volta. Padrão reutilizável para qualquer dependência externa.
 - **A atribuição "Powered by Geoapify"** nos mapas e ao lado da busca de endereço (exigência do serviço).
+
+**SESSAO-57 (24/11):**
+- **A pergunta no rodapé da janela** (`PerguntaNoRodape`, `src/rotas/AvisosDoPino.tsx`): antes de salvar, o rodapé troca os botões por um aviso âmbar com a pergunta e **Voltar** / **Salvar assim mesmo** ("Você não moveu o pino…", "O pino está a X km do CEP…"). Padrão reutilizável para conferência que não bloqueia.
+- **O aviso de rua não achada** (`AvisoRuaNaoAchada`): aviso âmbar acima do mapa ("Não achei a rua no mapa — o pino está no bairro …"), com "Salvar assim mesmo" que só libera o botão; o Salvar fica travado até arrastar o pino.
+- **"N pedidos com o pino a conferir"** em Já programadas: botão âmbar que filtra as rotas inteiras; o cartão marcado à mão no centro da cidade ganha o aviso com "Ajustar o pino".
+
