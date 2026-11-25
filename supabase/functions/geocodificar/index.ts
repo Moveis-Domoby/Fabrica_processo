@@ -74,20 +74,26 @@
 // sozinha caía no centro da cidade. Agora o NAVEGADOR de quem usa consulta o
 // CEP (src/rotas/cepNoNavegador.ts) e manda a resposta no item:
 //   POST { itens: [{ chave, endereco, cep?: <resposta do serviço de CEP> }] }
-// A função só usa se for do MESMO CEP do endereço; sem ela, pergunta pelo
-// servidor como antes (o site de antes segue funcionando igual).
+// A função só usa se for do MESMO CEP do endereço.
+//
+// ↪️ 25/11/2026 (pedido do dono: "as APIs de busca de endereço que usamos antes
+// ainda estão ativas? exclua, vamos remover o lixo"): saíram o Photon (a
+// reserva — recusava este servidor desde 19/11), o resto do Nominatim e a
+// consulta do CEP pelo SERVIDOR (sempre "limite de uso"). A Geoapify é o único
+// buscador; o CEP só vem do navegador (sem ele, sem degrau do CEP). A chamada
+// `{ conferir: { cep } }` deixou de existir — a tela confere o pino com o CEP
+// que ela mesma consulta; o site antigo que ainda chamar recebe
+// `{ resultados: [] }` e lê como "sem CEP" (não bloqueia nada). O segredo
+// PLT_GEOCODIFICACAO_CONTATO continua em uso pela função `calcular-rota`.
+// Os pontos que o Photon/Nominatim acharam continuam no cache (fonte antiga
+// só como histórico — o ponto vale igual).
 // ============================================================================
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { deveAvisarFora, pontoParaConferir, procurarEndereco, proximoEstado } from './fluxo.ts'
+import { deveAvisarFora, procurarEndereco, proximoEstado } from './fluxo.ts'
 import type { Ambiente, Consulta, EstadoDaBusca } from './fluxo.ts'
 
 const URL_SUPABASE = Deno.env.get('SUPABASE_URL')!
 const CHAVE_SERVICO = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-// Identificação de quem chama (boa prática dos serviços abertos — o Photon e o
-// serviço de CEP). O contato (e-mail ou site) é opcional e vive como segredo
-// de ambiente — nunca no código.
-const CONTATO = Deno.env.get('PLT_GEOCODIFICACAO_CONTATO') ?? ''
-const USER_AGENT = `PlataformaProducaoDomoby/1.0${CONTATO ? ` (${CONTATO})` : ''}`
 /** SESSAO-56: a chave da Geoapify — segredo das Edge Functions, posto pelo dono. */
 const CHAVE_GEOAPIFY = (Deno.env.get('PLT_GEOAPIFY_CHAVE') ?? '').trim() || null
 
@@ -236,35 +242,11 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return erro(405, 'Use POST.')
   if (!(await pessoaAtiva(req))) return erro(401, 'Só pessoa ativa da plataforma consulta endereços.')
 
-  let corpo: { itens?: Item[]; conferir?: { cep?: unknown } }
+  let corpo: { itens?: Item[] }
   try {
     corpo = await req.json()
   } catch {
     return erro(400, 'Corpo inválido — envie { itens: [{ chave, endereco }] }.')
-  }
-
-  // SESSAO-57 (frente 2): a conferência do pino — só o ponto do CEP, sem cache nem estado
-  if (corpo && typeof corpo.conferir === 'object' && corpo.conferir !== null) {
-    const ambienteCep: Ambiente = {
-      buscar: buscarJson,
-      esperar: () => dormir(INTERVALO_MS),
-      chaveGeoapify: null,
-      userAgent: USER_AGENT,
-      recusas: [],
-      geoapifyRecusou: false,
-    }
-    let ponto: { lat: number; lon: number } | null = null
-    try {
-      ponto = await pontoParaConferir(corpo.conferir.cep, ambienteCep)
-    } catch (e) {
-      ambienteCep.recusas.push(e instanceof Error ? e.name : 'falha')
-    }
-    if (ambienteCep.recusas.length > 0) {
-      console.warn(`geocodificar: conferir o CEP — ${[...new Set(ambienteCep.recusas)].join(', ')}`)
-    }
-    return resposta(200, {
-      conferir: ponto ? { cep: String(corpo.conferir.cep ?? ''), latitude: ponto.lat, longitude: ponto.lon } : null,
-    })
   }
 
   const itens = (corpo.itens ?? [])
@@ -290,7 +272,6 @@ Deno.serve(async (req) => {
     buscar: buscarJson,
     esperar: () => dormir(INTERVALO_MS),
     chaveGeoapify: CHAVE_GEOAPIFY,
-    userAgent: USER_AGENT,
     recusas: [],
     geoapifyRecusou: false,
   }
@@ -369,9 +350,7 @@ Deno.serve(async (req) => {
           ? consulta.fonte
           : lugar
             ? `aprox_${lugar.nivel}`
-            : CHAVE_GEOAPIFY
-              ? 'geoapify'
-              : 'photon',
+            : 'geoapify',
       consultado_em: new Date().toISOString(),
     }
     await servidor.from('plt_geocache').upsert(linha, { onConflict: 'chave' })

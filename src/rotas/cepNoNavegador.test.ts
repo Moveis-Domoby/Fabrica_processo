@@ -47,7 +47,7 @@ describe('o CEP no meio do endereço', () => {
 
 describe('a consulta do CEP pelo navegador', () => {
   it('pergunta UMA vez por CEP e devolve a resposta crua', async () => {
-    const buscar = vi.fn(async (_url: string) => resposta(200, CEP_13975))
+    const buscar = vi.fn<(url: string) => Promise<Response>>(async () => resposta(200, CEP_13975))
     expect(await respostaDoCep('59145-700', buscar)).toEqual(CEP_13975)
     expect(await respostaDoCep('59145700', buscar)).toEqual(CEP_13975)
     expect(buscar).toHaveBeenCalledTimes(1)
@@ -99,7 +99,6 @@ function ambiente(rede: Rede) {
     },
     esperar: async () => undefined,
     chaveGeoapify: 'CHAVE-DE-TESTE',
-    userAgent: 'teste',
     recusas: [],
     geoapifyRecusou: false,
   }
@@ -124,20 +123,21 @@ describe('a função de busca com o CEP do navegador', () => {
     expect(amb.recusas).not.toContain('CEP HTTP 429')
   })
 
-  it('sem a resposta do navegador (o site de antes): pergunta pelo servidor e, recusado, cai na cidade como antes', async () => {
+  // ↪️ 25/11 ("remover o lixo"): a consulta do CEP pelo servidor saiu (sempre "limite de uso")
+  it('sem a resposta do navegador: o servidor NÃO pergunta ao serviço de CEP — cai na cidade', async () => {
     const { amb, doCep } = ambiente({ geoapify: soCidade, cep: () => ({ erro: 'HTTP 429' }) })
     expect(await procurarEndereco(ENDERECO_13975, amb)).toMatchObject({ tipo: 'ok', fonte: 'aprox_cidade' })
-    expect(doCep()).toHaveLength(1)
-    expect(amb.recusas).toContain('CEP HTTP 429')
+    expect(doCep()).toHaveLength(0)
+    expect(amb.recusas).toEqual([])
   })
 
-  it('a resposta de OUTRO CEP não vale: a função pergunta pelo servidor', async () => {
+  it('a resposta de OUTRO CEP não vale: sem degrau do CEP (e sem perguntar ao serviço)', async () => {
     const { amb, doCep } = ambiente({ geoapify: soCidade, cep: () => ({ corpo: CEP_13975 }) })
     expect(await procurarEndereco(ENDERECO_13975, amb, { ...CEP_13975, cep: '59000111' })).toMatchObject({
       tipo: 'ok',
-      fonte: 'cep',
+      fonte: 'aprox_cidade',
     })
-    expect(doCep()).toHaveLength(1)
+    expect(doCep()).toHaveLength(0)
   })
 
   it('só serve a resposta do mesmo CEP (e um objeto)', () => {

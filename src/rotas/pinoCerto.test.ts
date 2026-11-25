@@ -5,7 +5,8 @@ import {
   partirEndereco,
   ruaDoTextoLivre,
 } from '../../supabase/functions/geocodificar/busca'
-import { cepDeRua as cepDeRuaServidor, pontoParaConferir, procurarEndereco } from '../../supabase/functions/geocodificar/fluxo'
+import { procurarEndereco } from '../../supabase/functions/geocodificar/fluxo'
+import { pontoDaResposta } from './cepNoNavegador'
 import type { Ambiente, RespostaDaRede } from '../../supabase/functions/geocodificar/fluxo'
 import {
   cepDeRua,
@@ -61,19 +62,17 @@ const ruaCerta = resultado({
   lon: -35.2769,
 })
 
-type Rede = Partial<Record<'geoapify' | 'photon' | 'cep', (url: URL) => RespostaDaRede>>
+type Rede = Partial<Record<'geoapify', (url: URL) => RespostaDaRede>>
 function ambiente(rede: Rede) {
   const chamadas: URL[] = []
   const amb: Ambiente = {
     buscar: async (url) => {
       chamadas.push(url)
-      const quem = url.host.includes('geoapify') ? 'geoapify' : url.host.includes('photon') ? 'photon' : url.host.includes('cep') ? 'cep' : null
-      const responde = quem ? rede[quem] : undefined
+      const responde = url.host.includes('geoapify') ? rede.geoapify : undefined
       return responde ? responde(url) : { erro: 'HTTP 404' }
     },
     esperar: async () => undefined,
     chaveGeoapify: 'CHAVE-DE-TESTE',
-    userAgent: 'teste',
     recusas: [],
     geoapifyRecusou: false,
   }
@@ -147,30 +146,23 @@ describe('frente 1 · a busca digitada não aceita bairro ou cidade como se foss
   })
 })
 
+// ↪️ 25/11 ("remover o lixo"): o ponto do CEP para conferir vem só do
+// navegador — a consulta pelo servidor (sempre "limite de uso") saiu.
 describe('frente 2 · o ponto do CEP para conferir o pino', () => {
-  it('pede ao serviço de CEP e devolve o ponto (o 13961: a referência do CEP 59144-158)', async () => {
-    const { amb, chamadas } = ambiente({
-      cep: () => ({ corpo: { cep: '59144158', lat: '-5.9453', lng: '-35.2769', city: 'Parnamirim', state: 'RN', district: 'Nova Esperança', address: 'Rua Dois' } }),
-    })
-    expect(await pontoParaConferir('59144-158', amb)).toEqual({ lat: -5.9453, lon: -35.2769 })
-    expect(chamadas).toHaveLength(1)
-    expect(chamadas[0].pathname).toContain('59144158')
+  const CEP_13961 = { cep: '59144158', lat: '-5.9453', lng: '-35.2769', city: 'Parnamirim', state: 'RN', district: 'Nova Esperança', address: 'Rua Dois' }
+
+  it('a resposta do serviço de CEP vira o ponto de referência (o 13961: o CEP 59144-158)', () => {
+    expect(pontoDaResposta('59144-158', CEP_13961)).toEqual({ latitude: -5.9453, longitude: -35.2769 })
   })
 
-  it('CEP geral da cidade, CEP torto ou sem CEP: nem pergunta', async () => {
-    const { amb, chamadas } = ambiente({})
-    expect(await pontoParaConferir('59000-000', amb)).toBeNull()
-    expect(await pontoParaConferir('123', amb)).toBeNull()
-    expect(await pontoParaConferir(null, amb)).toBeNull()
-    expect(chamadas).toHaveLength(0)
-    expect(cepDeRuaServidor(42)).toBeNull()
+  it('CEP geral da cidade, CEP torto ou sem CEP: nem pergunta', () => {
+    expect(cepDeRua('59000-000')).toBeNull()
+    expect(cepDeRua('123')).toBeNull()
+    expect(cepDeRua(null)).toBeNull()
   })
 
-  it('o serviço de CEP fora (ou sem o ponto): null — não bloqueia nada', async () => {
-    const fora = ambiente({ cep: () => ({ erro: 'HTTP 503' }) })
-    expect(await pontoParaConferir('59144158', fora.amb)).toBeNull()
-    const semPonto = ambiente({ cep: () => ({ corpo: { cep: '59144158' } }) })
-    expect(await pontoParaConferir('59144158', semPonto.amb)).toBeNull()
+  it('o serviço sem o ponto: null — não bloqueia nada', () => {
+    expect(pontoDaResposta('59144158', { cep: '59144158' })).toBeNull()
   })
 })
 
