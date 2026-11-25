@@ -1,7 +1,7 @@
 ---
 titulo: Próximos Passos — o plano em uma página
 tipo: indice
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [planejamento, roadmap, indice]
 ---
 
@@ -11,13 +11,39 @@ tags: [planejamento, roadmap, indice]
 > A leitura única de planejamento do projeto: **onde estamos, qual é o próximo passo, o que vem depois e o que está esperando você**. Ela não substitui as demandas — resume e aponta. Detalhe de execução vive em [[000 - ORDEM DAS SESSOES]]; o novo bloco em [[002 - PLANO - Bloco 5 - Producao Estoque Chat e Automacoes]]; ideias de longo prazo em [[001 - HANDOFF - Pesquisa e Ideias de Plataformas]].
 > **Regra de manutenção:** toda sessão entregue ou decisão nova atualiza esta nota junto com o mapa.
 
-## ▶️ Agora (18/11): revisão das pendências — o que de fato falta
+## ▶️ Agora (25/11): o que está no ar e o que falta
+
+Retrato de 25/11, depois da subida da madrugada (o banco por volta das 04:50, o site às 05:00) e da conferência no banco às 05:10. O passo a passo da subida está no [[handoff_2026_11_25_subida_atualizada|handoff dela]]; o estado de cada sessão, em [[000 - ORDEM DAS SESSOES]].
+
+**No ar desde 24/11:**
+- **A busca de endereço nova e a ordem da rota que não se mexe sozinha** ([[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa|56]]): os endereços voltaram a ganhar ponto no mapa, a tela avisa quando a busca falha, e tirar um pedido da rota não reordena os outros.
+- **O pino certo** ([[SESSAO-57 - O Pino Certo|57]]): "Achar no mapa" não finge mais que achou a rua, o pino salvo à mão é conferido contra o CEP, e a aba Programar avisa quando o ponto é só aproximado.
+
+**No ar desde 25/11:**
+- **As datas de entrega certas** ([[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria|52]]): a busca, a devolução e a lista de pedidos mostram o dia real da entrega, e a Auditoria fala português.
+- **O selo "Entregue em parte"** ([[SESSAO-53 - Entregue em Parte na Programacao Expedicao e Entregas do Dia|53]]): aparece na Programação, na Expedição e nas Entregas do dia, junto com o aviso do ponto aproximado.
+- **O Comercial com as janelas da casa** ([[SESSAO-54 - Comercial - Janelas da Plataforma e Limpeza da Funcao Antiga|54]]): as perguntas e os avisos são os da plataforma, a tabela de clientes é ordenada pelo banco, e a função antiga que devolvia dado de cliente foi apagada (o dono autorizou).
+- **As telas que abrem com uma leitura só** ([[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel|55]]): Meu painel, Pessoas, Qualidade, Meu desempenho, Equipe, Caminhões, Automações e outras de configuração — nada muda na tela, só abre com menos idas ao banco.
+- **A documentação arrumada** ([[SESSAO-49 - Dieta da Documentacao - Cofre no Padrao de Mapas do Obsidian|49]]): cada sessão lê as regras curtas e o mapa da área, não mais tudo.
+- **O CEP pelo navegador** (ajuste de 25/11): a conferência do pino consulta o CEP direto do navegador de quem está usando.
+
+**O que falta:**
+1. **As rotinas do banco por evento, parte 1** (avisos, reservas e fotos): entram pela fila na noite de 25/11, fora do horário da fábrica.
+2. **A virada do Comercial** (o disparo passar a nascer do fato): espera o dono guardar a chave no cofre de segredos da Supabase — em 25/11 esse cofre está vazio. Até lá, os três agendamentos antigos do disparo continuam valendo.
+3. **As decisões provisórias destas entregas** (valem até o dono dizer o contrário): estão listadas, sessão por sessão, na seção 5 do [[handoff_2026_11_24_subida_juntar_entregas|handoff da subida de 24/11]] (as da 49 e das 52 a 56) e na seção 5 do [[handoff_2026_11_25_subida_atualizada|handoff da subida de 25/11]] (as do pino certo).
+4. **As perguntas abertas** ([[PLT - Perguntas em Aberto]]): a faixa "a busca de endereço está fora" aparecer para todos, e não só para quem tem endereço novo a procurar; as pendências do pino certo (confirmar com o cliente o endereço de um pedido cujo pino foi um palpite, ver o primeiro endereço novo resolvido pelo CEP do navegador, e a lista "pino a conferir" reconhecer sempre o pino salvo no centro da cidade); e as 7 decisões do [[handoff_2026_11_25_planejamento_ponto_do_google|planejamento do ponto do Google]] na busca de endereços.
+5. **Olhar as telas logado, como dono e como operador:** a publicação conferiu as portas pelo banco, não pela tela — vale passar por Pedidos, Meu painel, os painéis, as configurações, o Comercial e as Rotas.
+6. **O selo na primeira entrega parcial real:** em 25/11 não havia nenhum pedido aberto entregue em parte, então o selo "Entregue em parte" ainda não foi visto na tela de verdade.
+
+*Segue valendo da revisão de 18/11 (abaixo) o que não é destas entregas: as sessões que não rodaram, o que está pronto e não ligado, e a lista "com o dono".*
+
+## (anterior) 18/11: revisão das pendências — o que de fato falta
 
 Retrato conferido em 18/11 no código, no banco de produção e no ClickUp (a revisão completa está no Projeto do Cowork, "revisao-pendencias-2026-11-18"). O que estava escrito como pendente e já estava feito foi marcado com ↪️ 18/11 na própria nota de origem; os critérios de aceite de todas as demandas entregues foram conferidos item a item (marcados nas demandas).
 
 **Sessões planejadas que não rodaram:**
-- [[SESSAO-49 - Dieta da Documentacao - Cofre no Padrao de Mapas do Obsidian]] — pronta desde 11/11; os monólitos cresceram desde então (decisões 433 KB, memória 269 KB, esquema 264 KB). ↪️ **18/11: executada e entregue na branch** ([[handoff_2026_11_18_sessao49_dieta_da_documentacao|handoff]]) — a leitura obrigatória caiu de 1,3 MB para 30 KB; espera a revisão do dono para entrar na main. A partir dela, o caminho de leitura é [[000 - REGRAS DE OURO]] → o mapa da área (`Mapas/`).
-- SESSAO-34 (rotinas do banco por evento) e SESSAO-35 (baixa dos insumos por etapa) — a mapear; no banco ainda rodam 3 rotinas a cada minuto e 1 a cada 5 min, e o liga/desliga "Reduzir os insumos…" ([[D-142 - Integracao completa com o Tiny as 6 perguntas do plano|D-142]]) não existe.
+- [[SESSAO-49 - Dieta da Documentacao - Cofre no Padrao de Mapas do Obsidian]] — pronta desde 11/11; os monólitos cresceram desde então (decisões 433 KB, memória 269 KB, esquema 264 KB). ↪️ **18/11: executada e entregue na branch** ([[handoff_2026_11_18_sessao49_dieta_da_documentacao|handoff]]) — a leitura obrigatória caiu de 1,3 MB para 30 KB; espera a revisão do dono para entrar na main (↪️ **25/11: no ar** — entrou na main pela subida de 25/11). A partir dela, o caminho de leitura é [[000 - REGRAS DE OURO]] → o mapa da área (`Mapas/`).
+- SESSAO-34 (rotinas do banco por evento) e SESSAO-35 (baixa dos insumos por etapa) — a mapear (↪️ **25/11:** a 34 está pronta no ramo — a parte 1 entra pela fila na noite de 25/11 e a virada do Comercial espera a chave do dono; a 35 segue a mapear); no banco ainda rodam 3 rotinas a cada minuto e 1 a cada 5 min, e o liga/desliga "Reduzir os insumos…" ([[D-142 - Integracao completa com o Tiny as 6 perguntas do plano|D-142]]) não existe.
 - [[SESSAO-18 - Painel Admin Completo]] — quase toda absorvida por Configurações, Super admin e Auditoria; sobram a matriz de permissões por papel e a visão de saúde.
 
 **Pronto no código e não ligado:** o gancho do token (permissões no login e recusa do inativo); a chamada de automação de fora (a função `api` no ar é a de 28/08); "salvar o endereço também no Tiny" ([[D-320 - Salvar na plataforma e no Tiny fica desligado por enquanto|D-320]], espera o teste com o dono).
