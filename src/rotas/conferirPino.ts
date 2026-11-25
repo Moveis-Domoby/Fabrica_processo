@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { pontoDoCepParaConferir } from './api'
+import { cepDeRua } from './cepNoNavegador'
 import { distanciaKm, formatarDistancia } from './proximidade'
 import type { Ponto } from './proximidade'
 
@@ -36,17 +37,8 @@ export function ondeOPinoEsta(p: Pick<PontoSuspeito, 'nivel' | 'nome'>): string 
   return nome ? `no centro de ${nome}` : 'no centro da cidade'
 }
 
-/** Só os 8 dígitos de um CEP de RUA (o geral da cidade, …000, não diz onde fica a casa); senão null. */
-export function cepDeRua(cep: string | null | undefined): string | null {
-  const d = (cep ?? '').replace(/\D/g, '')
-  return d.length === 8 && !d.endsWith('000') ? d : null
-}
-
-/** O CEP escrito no meio de um endereço digitado ("…, Natal, RN, 59014-430"); null sem CEP de rua. */
-export function cepNoTexto(texto: string | null | undefined): string | null {
-  const m = (texto ?? '').match(/(?:^|\D)(\d{5})[-.\s]?(\d{3})(?!\d)/)
-  return m ? cepDeRua(`${m[1]}${m[2]}`) : null
-}
+// o CEP de rua e o CEP no meio do texto moram com a consulta do CEP pelo navegador (ajuste 24/11)
+export { cepDeRua, cepNoTexto } from './cepNoNavegador'
 
 export type PerguntaDoPino =
   | { tipo: 'nao_moveu'; texto: string }

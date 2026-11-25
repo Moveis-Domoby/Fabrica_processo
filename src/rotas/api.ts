@@ -1,6 +1,7 @@
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { SituacaoCalendario } from './calendario'
+import { cepNoTexto, pontoDaResposta, respostaDoCep } from './cepNoNavegador'
 
 /**
  * Camada de dados do módulo de ROTAS (SESSAO-11 / D-33, revista na SESSAO-15 /
@@ -665,8 +666,18 @@ export async function geocodificar(
   itens: { chave: string; endereco: string }[],
 ): Promise<RespostaGeocodificacao> {
   if (itens.length === 0) return { resultados: [] }
+  // Ajuste 24/11: o ponto do CEP vem do NAVEGADOR (o serviço de CEP recusa o
+  // servidor por limite de uso) e vai junto ao endereço do cadastro; a função
+  // confere que é o mesmo CEP. O endereço digitado não usa o CEP (só a rua).
+  const lote = await Promise.all(
+    itens.slice(0, GEOCODIFICAR_POR_CHAMADA).map(async (item) => {
+      if (item.chave.startsWith('avulsa:')) return item
+      const cep = await respostaDoCep(cepNoTexto(item.endereco))
+      return cep ? { ...item, cep } : item
+    }),
+  )
   const { data, error } = await supabase.functions.invoke('geocodificar', {
-    body: { itens: itens.slice(0, GEOCODIFICAR_POR_CHAMADA) },
+    body: { itens: lote },
   })
   if (error) {
     let mensagem = 'Não consegui consultar o mapa. Confira a internet e tente de novo.'
@@ -1465,13 +1476,16 @@ export async function acharPontoDoEndereco(endereco: string): Promise<PontoAchad
 }
 
 /**
- * SESSAO-57 (frente 2): o ponto do CEP para conferir o pino antes de salvar —
- * uma chamada leve à mesma função (`{ conferir: { cep } }`). Qualquer falha
- * (serviço de CEP fora, função de antes, sem internet) = null: não bloqueia nada.
+ * SESSAO-57 (frente 2): o ponto do CEP para conferir o pino antes de salvar.
+ * ↪️ Ajuste 24/11: pergunta PELO NAVEGADOR ao serviço de CEP (ele recusa o
+ * servidor por limite de uso); sem resposta, a chamada leve à função
+ * (`{ conferir: { cep } }`) como antes. Qualquer falha = null: não bloqueia nada.
  */
 export async function pontoDoCepParaConferir(
   cep: string,
 ): Promise<{ latitude: number; longitude: number } | null> {
+  const pelaTela = pontoDaResposta(cep, await respostaDoCep(cep))
+  if (pelaTela) return pelaTela
   try {
     const { data, error } = await supabase.functions.invoke('geocodificar', {
       body: { conferir: { cep } },

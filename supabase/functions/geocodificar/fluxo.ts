@@ -130,9 +130,23 @@ async function peloPhoton(
   return { lista: candidatosPhoton(r.corpo) }
 }
 
+/**
+ * Ajuste 24/11: a resposta do serviço de CEP que o NAVEGADOR consultou (o
+ * serviço recusa este servidor por limite de uso) — vale só se for do MESMO CEP
+ * do endereço; senão `undefined` (não veio, ou não serve) e o servidor pergunta.
+ */
+export function respostaDoNavegador(e: EnderecoPartido, cepDoNavegador: unknown): unknown {
+  if (!e.cep || !cepDoNavegador || typeof cepDoNavegador !== 'object') return undefined
+  const cep = (cepDoNavegador as Record<string, unknown>).cep
+  if (typeof cep !== 'string' || cep.replace(/\D/g, '') !== e.cep) return undefined
+  return cepDoNavegador
+}
+
 /** O ponto do CEP pelo serviço de CEP (recusa/limite = sem degrau do CEP, nunca erro). */
-async function peloCep(amb: Ambiente, e: EnderecoPartido): Promise<PontoDoCep | null> {
+async function peloCep(amb: Ambiente, e: EnderecoPartido, cepDoNavegador?: unknown): Promise<PontoDoCep | null> {
   if (!e.cep) return null
+  const doNavegador = respostaDoNavegador(e, cepDoNavegador)
+  if (doNavegador !== undefined) return pontoDoCep(e, doNavegador)
   const r = await amb.buscar(new URL(SERVICO_CEP + e.cep), { 'User-Agent': amb.userAgent })
   if ('erro' in r) {
     if (r.erro !== 'HTTP 404') amb.recusas.push(`CEP ${r.erro}`)
@@ -183,8 +197,9 @@ async function degraus(
   pausa: () => Promise<void>,
   e: EnderecoPartido,
   candidatos: Candidato[],
+  cepDoNavegador?: unknown,
 ): Promise<Consulta> {
-  const cep = await peloCep(amb, e)
+  const cep = await peloCep(amb, e, cepDoNavegador)
   if (cep && !cep.geral) {
     const rua = escolherPerto(e, candidatos, { lat: cep.lat, lon: cep.lon, degrau: 'cep' })
     if (rua) return { tipo: 'ok', lat: rua.lat, lon: rua.lon, fonte: rua.fonte }
@@ -224,7 +239,7 @@ async function degraus(
  * Photon), a escolha de sempre (busca.ts) e, sem rua, os degraus. Nenhum
  * buscador respondeu = "tentar depois" (`erro`); resposta vazia = "não achei".
  */
-export async function procurarEndereco(endereco: string, amb: Ambiente): Promise<Consulta> {
+export async function procurarEndereco(endereco: string, amb: Ambiente, cepDoNavegador?: unknown): Promise<Consulta> {
   const e = partirEndereco(endereco)
   const candidatos: Candidato[] = []
   const modo: ModoGeoapify = e.livre || !e.rua ? 'livre' : 'rua'
@@ -272,7 +287,7 @@ export async function procurarEndereco(endereco: string, amb: Ambiente): Promise
     // SESSAO-57: com o bairro ou a cidade só como o lugar onde o mapa abre
     if (e.livre && escolha.aproximado) return { tipo: 'aproximado', lugar: escolha.aproximado }
     if (e.livre) return { tipo: 'vazio', motivo: escolha.motivo }
-    const degrau = await degraus(amb, pausa, e, unicos)
+    const degrau = await degraus(amb, pausa, e, unicos, cepDoNavegador)
     return degrau.tipo === 'vazio' ? { tipo: 'vazio', motivo: `${escolha.motivo}+${degrau.motivo}` } : degrau
   }
   const ponto = escolha.ponto

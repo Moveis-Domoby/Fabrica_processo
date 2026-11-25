@@ -67,6 +67,15 @@
 //   E a conferência do pino salvo à mão, numa chamada leve:
 //   POST { conferir: { cep } } → { conferir: { cep, latitude, longitude } | null }
 //   (o ponto do CEP pelo serviço de CEP; sem resposta = null — a tela não bloqueia)
+//
+// ↪️ Ajuste de 24/11 (validação dos endereços; o dono: "resolva"): o serviço de
+// CEP gratuito responde HTTP 429 (limite de uso) a TODAS as chamadas deste
+// servidor — o degrau do CEP nunca funcionava e a rua que a Geoapify não achava
+// sozinha caía no centro da cidade. Agora o NAVEGADOR de quem usa consulta o
+// CEP (src/rotas/cepNoNavegador.ts) e manda a resposta no item:
+//   POST { itens: [{ chave, endereco, cep?: <resposta do serviço de CEP> }] }
+// A função só usa se for do MESMO CEP do endereço; sem ela, pergunta pelo
+// servidor como antes (o site de antes segue funcionando igual).
 // ============================================================================
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { deveAvisarFora, pontoParaConferir, procurarEndereco, proximoEstado } from './fluxo.ts'
@@ -144,6 +153,12 @@ async function pessoaAtiva(req: Request): Promise<boolean> {
 interface Item {
   chave: string
   endereco: string
+  /**
+   * Ajuste 24/11: a resposta do serviço de CEP que o NAVEGADOR consultou (o
+   * serviço recusa este servidor por limite de uso). Opcional; só vale se for
+   * do mesmo CEP do endereço (`respostaDoNavegador`, em fluxo.ts).
+   */
+  cep?: unknown
 }
 
 interface Resultado {
@@ -304,7 +319,7 @@ Deno.serve(async (req) => {
     consultou = true
     let consulta: Consulta
     try {
-      consulta = await procurarEndereco(item.endereco, ambiente)
+      consulta = await procurarEndereco(item.endereco, ambiente, item.cep)
     } catch (e) {
       // o nome do erro, nunca a mensagem (ela pode trazer a URL com a chave)
       consulta = { tipo: 'erro', motivo: e instanceof Error ? e.name : 'falha' }
