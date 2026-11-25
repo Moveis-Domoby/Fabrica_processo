@@ -183,7 +183,9 @@ const ONDE_LER = {
   interface: { banco: [], memoria: ['Front Telas', 'Testes e Validacao'], design: ['Design - '] },
   processo: { banco: [], memoria: ['Processo de Sessao', 'Git Shell', 'Modelos Formulas'], design: [] },
 };
-function gerarMapa(c, area) {
+// compacto = as provisórias só com a ligação (sem o título), quando o mapa com os títulos passaria do teto
+// (subida de 25/11: a Logística passou de 50 provisórias; o título de cada uma está no índice das decisões)
+function gerarMapa(c, area, compacto = false) {
   const todas = [...c.decisoes.values()].filter((d) => d.area.includes(area)).sort(porNumero);
   const vig = todas.filter((d) => d.status === 'vigente');
   const prov = todas.filter((d) => d.status === 'provisoria');
@@ -191,7 +193,8 @@ function gerarMapa(c, area) {
   const o = ONDE_LER[area];
   const lista = (rotulo, itens) => (itens.length ? `- **${rotulo}:** ${itens.join(' · ')}\n` : '');
   let s = `## Decisões vigentes (${vig.length})\n\n${vig.map((d) => linhaDecisao(d, 88)).join('\n') || '—'}\n`;
-  if (prov.length) s += `\n## Provisórias ⏳ — valem até o dono dizer o contrário (${prov.length})\n\n${prov.map((d) => `- [[${d.nome}|${d.id}]] · ${curto(d.titulo, 88)}`).join('\n')}\n`;
+  if (prov.length && compacto) s += `\n## Provisórias ⏳ — valem até o dono dizer o contrário (${prov.length})\n\nCom os títulos o mapa passaria do teto: o título de cada uma está em [[PLT - Decisoes de Produto]].\n\n${prov.map((d) => `[[${d.nome}|${d.id}]]`).join(' · ')}\n`;
+  else if (prov.length) s += `\n## Provisórias ⏳ — valem até o dono dizer o contrário (${prov.length})\n\n${prov.map((d) => `- [[${d.nome}|${d.id}]] · ${curto(d.titulo, 88)}`).join('\n')}\n`;
   if (rev.length) s += `\n## Revisadas por outra (${rev.length}) — só para a história\n\n${rev.map((d) => `[[${d.nome}|${d.id}]]`).join(' · ')}\n`;
   s += `\n## Onde mais ler (só o que a demanda tocar)\n\n${lista('Banco', comPrefixo(c, 'Supabase-fabrica/Banco/', o.banco))}${lista('Lições', comPrefixo(c, 'Plataforma/Memoria/', o.memoria))}${lista('Design', comPrefixo(c, 'Plataforma/Design/', o.design))}`;
   return s;
@@ -203,7 +206,11 @@ function blocoPara(c, nota) {
   if (nota.rel === INDICES[2]) return gerarIndiceEsquema(c);
   if (nota.rel.startsWith('Mapas/')) {
     const area = frontmatter(nota.texto).fm?.area;
-    if (area && AREAS[area]) return gerarMapa(c, area);
+    if (area && AREAS[area]) {
+      const cheio = gerarMapa(c, area);
+      const comCheio = comBloco(nota.texto, cheio);
+      return comCheio && Buffer.byteLength(comCheio, 'utf8') > TETO.mapa ? gerarMapa(c, area, true) : cheio;
+    }
   }
   return null;
 }
