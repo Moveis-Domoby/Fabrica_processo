@@ -17,7 +17,7 @@ tags: [plataforma, decisoes, produto]
 <!-- gerado:inicio -->
 ## As decisões, por área
 
-**346 decisões** · 156 vigentes · 145 provisórias ⏳ (valem até o dono dizer o contrário) · 45 revisadas por outra. **Próxima livre: D-390.** A área é a principal da decisão; o mapa de cada área (`Mapas/`) lista também as que a tocam de lado.
+**359 decisões** · 162 vigentes · 152 provisórias ⏳ (valem até o dono dizer o contrário) · 45 revisadas por outra. **Próxima livre: D-403.** A área é a principal da decisão; o mapa de cada área (`Mapas/`) lista também as que a tocam de lado.
 
 ### Kanban e Produção (34) — [[MOC - Kanban e Producao]]
 
@@ -121,7 +121,7 @@ tags: [plataforma, decisoes, produto]
 - [[D-275 - Detalhes do pedido adiantado no Tiny|D-275]] · Detalhes do pedido adiantado no Tiny ⏳
 - [[D-343 - Na devolucao a entrega com dia escolhido ou corrigido aparece|D-343]] · Na devolução a entrega com dia escolhido ou corrigido aparece só com o dia ⏳
 
-### Logística e ROTAS (70) — [[MOC - Logistica e ROTAS]]
+### Logística e ROTAS (83) — [[MOC - Logistica e ROTAS]]
 
 - [[D-093 - O endereco do cliente que o Tiny manda e o endereco|D-93]] · O endereço do cliente que o Tiny manda é o endereço de entrega das ROTAS
 - [[D-108 - A rota da Programacao e calculada PELAS RUAS parte da fabrica|D-108]] · A rota da Programação é calculada PELAS RUAS, parte da fábrica e VOLTA para ela; distância e…
@@ -193,6 +193,19 @@ tags: [plataforma, decisoes, produto]
 - [[D-384 - A parada avulsa nova segue a regra do lugar mais perto|D-384]] · A parada avulsa nova segue a regra do lugar mais perto ⏳
 - [[D-385 - Na montagem um pedido so conta como programar sozinho|D-385]] · Na montagem um pedido só conta como programar sozinho ⏳
 - [[D-386 - Dois pedidos no mesmo ponto do mapa ficam juntos o novo antes|D-386]] · Dois pedidos no mesmo ponto do mapa ficam juntos o novo antes ⏳
+- [[D-390 - A busca digitada so aceita rua ou casa o lugar vira nao achei|D-390]] · A busca digitada só aceita rua ou casa; o lugar vira "não achei" com onde abrir o mapa
+- [[D-391 - Com a rua nao achada o Salvar fica travado ate arrastar o pino|D-391]] · Com a rua não achada o Salvar fica travado até arrastar o pino
+- [[D-392 - O pino salvo a mao e conferido antes de salvar|D-392]] · O pino salvo à mão é conferido antes de salvar
+- [[D-393 - Ja programadas mostra os pedidos com o pino a conferir|D-393]] · Já programadas mostra os pedidos com o pino a conferir
+- [[D-394 - A distancia para conferir o pino contra o CEP e 1 5 km|D-394]] · A distância para conferir o pino contra o CEP é 1,5 km ⏳
+- [[D-395 - A busca digitada nao usa mais a memoria de buscas|D-395]] · A busca digitada não usa mais a memória de buscas ⏳
+- [[D-396 - O lugar que vem no lugar da rua e o primeiro que o mapa|D-396]] · O lugar que vem no lugar da rua é o primeiro que o mapa devolve ⏳
+- [[D-397 - Salvar assim mesmo no aviso libera o botao e nao salva sozinho|D-397]] · Salvar assim mesmo no aviso libera o botão e não salva sozinho ⏳
+- [[D-398 - So o pino novo e conferido|D-398]] · Só o pino novo é conferido ⏳
+- [[D-399 - O toque em pino a conferir mostra as rotas inteiras|D-399]] · O toque em pino a conferir mostra as rotas inteiras ⏳
+- [[D-400 - A lista do pino a conferir conta de hoje em diante pelo dia da|D-400]] · A lista do pino a conferir conta de hoje em diante pelo dia da fábrica ⏳
+- [[D-401 - A aba Programar avisa o ponto aproximado como Ja programadas|D-401]] · A aba Programar avisa o ponto aproximado como Já programadas
+- [[D-402 - O ponto do CEP e consultado pelo navegador|D-402]] · O ponto do CEP é consultado pelo navegador
 
 ### Tiny e n8n (19) — [[MOC - Tiny e n8n]]
 

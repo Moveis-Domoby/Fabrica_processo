@@ -2,7 +2,7 @@
 titulo: "Mapa — Logística e ROTAS"
 tipo: mapa
 area: logistica-rotas
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [mapa, moc, area/logistica-rotas]
 ---
 
@@ -14,22 +14,21 @@ tags: [mapa, moc, area/logistica-rotas]
 
 **Notas da área:** [[N8N - ROTAS Entregue para Tiny]] · [[N8N - ROTAS ClickUp]]
 
-**Perguntas em aberto:** nenhuma registrada para a área — [[PLT - Perguntas em Aberto]]
+**Perguntas em aberto:** o pino a conferir pelo banco e o ponto do Google — [[PLT - Perguntas em Aberto]]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
+- **57** · [[SESSAO-57 - O Pino Certo]] · [[handoff_2026_11_24_sessao57_pino_certo|handoff]] (+ ajustes de 24 e 25/11) · [[handoff_2026_11_25_planejamento_ponto_do_google|plano do Google]]
 - **56** · [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · [[handoff_2026_11_23_sessao56_busca_geoapify_ordem_da_rota|handoff]]
 - **53** · [[SESSAO-53 - Entregue em Parte na Programacao Expedicao e Entregas do Dia]] · [[handoff_2026_11_18_sessao53_entregue_em_parte_nas_telas|handoff]]
 - **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]]
 - **51** · [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP]] · [[handoff_2026_11_17_sessao51_entrega_parcial_mover_pcp|handoff]]
 - **50** · [[SESSAO-50 - Observacao do Item Cancelar e Ocultar no PCP e Editar Endereco da Parada]] · [[handoff_2026_11_12_sessao50_observacao_cancelar_ocultar_endereco|handoff]]
 - **47** · [[SESSAO-47 - Pedido Adiantado no Tiny Data Real da Entrega Comprovantes e Painel de Tempos]] · [[handoff_2026_11_09_sessao47_pedido_adiantado_entrega_comprovantes_tempos|handoff]]
-- **45** · [[SESSAO-45 - Rotas no Mapa Certo Liberar Peca na Expedicao e PCP Honesto]] · [[handoff_2026_11_04_sessao45_rotas_expedicao_pcp|handoff]]
-- **44** · [[SESSAO-44 - Entrega que Volta do Tiny e Itens Novos no PCP]] · [[handoff_2026_11_04_sessao44_entrega_tiny_itens_novos|handoff]]
-- As mais antigas (41, 39, 38, 30, 28, 15): [[MOC - Sessoes e Handoffs]]
+- As mais antigas (45, 44, 41, 39, 38, 30, 28, 15): [[MOC - Sessoes e Handoffs]]
 
 <!-- gerado:inicio -->
-## Decisões vigentes (33)
+## Decisões vigentes (39)
 
 - [[D-093 - O endereco do cliente que o Tiny manda e o endereco|D-93]] · O endereço do cliente que o Tiny manda é o endereço de entrega das ROTAS
 - [[D-108 - A rota da Programacao e calculada PELAS RUAS parte da fabrica|D-108]] · A rota da Programação é calculada PELAS RUAS, parte da fábrica e VOLTA para ela;…
@@ -64,55 +63,18 @@ tags: [mapa, moc, area/logistica-rotas]
 - [[D-373 - O pedido que ganha ponto no mapa nao muda de lugar na rota|D-373]] · O pedido que ganha ponto no mapa não muda de lugar na rota
 - [[D-374 - Quem entra numa rota que ja existe vai para o lugar mais perto|D-374]] · Quem entra numa rota que já existe vai para o lugar mais perto
 - [[D-375 - Aviso no sino quando a busca de endereco passa 1 hora fora|D-375]] · Aviso no sino quando a busca de endereço passa 1 hora fora
+- [[D-390 - A busca digitada so aceita rua ou casa o lugar vira nao achei|D-390]] · A busca digitada só aceita rua ou casa; o lugar vira "não achei" com onde abrir o mapa
+- [[D-391 - Com a rua nao achada o Salvar fica travado ate arrastar o pino|D-391]] · Com a rua não achada o Salvar fica travado até arrastar o pino
+- [[D-392 - O pino salvo a mao e conferido antes de salvar|D-392]] · O pino salvo à mão é conferido antes de salvar
+- [[D-393 - Ja programadas mostra os pedidos com o pino a conferir|D-393]] · Já programadas mostra os pedidos com o pino a conferir
+- [[D-401 - A aba Programar avisa o ponto aproximado como Ja programadas|D-401]] · A aba Programar avisa o ponto aproximado como Já programadas
+- [[D-402 - O ponto do CEP e consultado pelo navegador|D-402]] · O ponto do CEP é consultado pelo navegador
 
-## Provisórias ⏳ — valem até o dono dizer o contrário (46)
+## Provisórias ⏳ — valem até o dono dizer o contrário (53)
 
-- [[D-156 - A rota aceita QUALQUER pedido vivo o Lancar para ROTAS deixa|D-156]] · A rota aceita QUALQUER pedido vivo; o "Lançar para ROTAS" deixa de ser passo
-- [[D-158 - A equipe da rota so entregador|D-158]] · A equipe da rota: só entregador
-- [[D-159 - O mapa da rota So a ida e So a volta o Programar sem espaco|D-159]] · O mapa da rota: "Só a ida" e "Só a volta"; o "Programar" sem espaço vazio
-- [[D-170 - Lancar direto para as entregas e Devolver|D-170]] · "Lançar direto para as entregas" e "Devolver"
-- [[D-213 - Reabrir a entrega|D-213]] · Reabrir a entrega
-- [[D-214 - A volta atras no Tiny|D-214]] · A volta atrás no Tiny
-- [[D-216 - O acerto do 13787|D-216]] · O acerto do 13787
-- [[D-217 - O Google Maps e o Waze vao pelo ENDERECO do pedido o ponto|D-217]] · O Google Maps e o Waze vão pelo ENDEREÇO do pedido; o ponto só manda quando uma pessoa o…
-- [[D-218 - A busca de endereco confere o BAIRRO e o CEP o que ela nao|D-218]] · A busca de endereço confere o BAIRRO e o CEP; o que ela não acha (ou acha duvidoso) a…
-- [[D-277 - O dia da entrega nunca fica antes do dia em que o pedido|D-277]] · O dia da entrega nunca fica antes do dia em que o pedido chegou à plataforma
-- [[D-278 - A hora guardada para um dia passado e o fim do expediente|D-278]] · A hora guardada para um dia passado é o fim do expediente da fábrica naquele dia
-- [[D-279 - No calendario das rotas o entregue aparece no dia REAL com|D-279]] · No calendário das rotas o entregue aparece no dia REAL, com a nota do dia programado…
-- [[D-280 - Desfazer do dia e o toque repetido contam pelo dia em que|D-280]] · "Desfazer do dia" (e o toque repetido) contam pelo dia em que a entrega foi REGISTRADA,…
-- [[D-281 - A correcao do dia da entrega motivo opcional registro novo|D-281]] · A correção do dia da entrega: motivo opcional, registro novo feito na hora
-- [[D-283 - Detalhes da entrega no dia real|D-283]] · Detalhes da entrega no dia real
-- [[D-321 - O Tiny mudando o endereco por fora vence e avisa|D-321]] · O Tiny mudando o endereço por fora vence e avisa
-- [[D-322 - Os detalhes do endereco do pedido|D-322]] · Os detalhes do endereço do pedido
-- [[D-323 - Editar a parada avulsa|D-323]] · Editar a parada avulsa
-- [[D-324 - Em Ja programadas o selo do endereco alterado fica na janela|D-324]] · Em "Já programadas" o selo do endereço alterado fica na janela, não no cartão
-- [[D-326 - Os detalhes da peca que sai e volta pela entrega parcial|D-326]] · Os detalhes da peça que sai e volta pela entrega parcial
-- [[D-328 - Onde o pedido mostra Entregue em parte N de M e a parada|D-328]] · Onde o pedido mostra "Entregue em parte (N de M)" e a parada da rota
-- [[D-329 - So a logistica o PCP e o admin escolhem Limpar da producao|D-329]] · Só a logística, o PCP e o admin escolhem "Limpar da produção"
-- [[D-334 - Os pedidos entregues em parte antes desta sessao|D-334]] · Os pedidos entregues em parte antes desta sessão
-- [[D-340 - A lista de pedidos ganha uma porta nova no banco com a hora do|D-340]] · A lista de pedidos ganha uma porta nova no banco com a hora do registro
-- [[D-341 - A hora da entrega so aparece quando e a hora de verdade|D-341]] · A hora da entrega só aparece quando é a hora de verdade
-- [[D-342 - O texto da linha da entrega na lista de pedidos dia escolhido|D-342]] · O texto da linha da entrega na lista de pedidos dia escolhido e registrado em
-- [[D-344 - A busca geral diz Entregue em pelo dia real da entrega|D-344]] · A busca geral diz Entregue em pelo dia real da entrega
-- [[D-346 - Depois que o resto e entregue o selo Entregue em parte some|D-346]] · Depois que o resto é entregue o selo Entregue em parte some das telas da logística
-- [[D-347 - K ainda em producao so com deixar em producao e o pedido|D-347]] · K ainda em produção só com deixar em produção e o pedido aberto
-- [[D-348 - O Calendario da Programacao fica sem o selo Entregue em parte|D-348]] · O Calendário da Programação fica sem o selo Entregue em parte
-- [[D-349 - Em Entregues hoje o aviso em parte vira o selo com os numeros|D-349]] · Em Entregues hoje o aviso em parte vira o selo com os números
-- [[D-350 - ROTAS Entregas fica como estava sem o selo novo|D-350]] · ROTAS → Entregas fica como estava sem o selo novo
-- [[D-376 - Incluir um pedido na montagem poe ele onde o caminho aumenta|D-376]] · Incluir um pedido na montagem põe ele onde o caminho aumenta menos
-- [[D-377 - A numeracao sem buracos da rota e so na tela|D-377]] · A numeração sem buracos da rota é só na tela
-- [[D-378 - A faixa da busca fora so em Rotas e para quem tem endereco|D-378]] · A faixa da busca fora só em Rotas e para quem tem endereço novo a procurar
-- [[D-379 - Os textos dos avisos da busca e da montagem|D-379]] · Os textos dos avisos da busca e da montagem
-- [[D-380 - A pausa entre consultas a Geoapify e as consultas por endereco|D-380]] · A pausa entre consultas à Geoapify e as consultas por endereço
-- [[D-381 - O nao achei fica registrado como procurado pela Geoapify|D-381]] · O não achei fica registrado como procurado pela Geoapify
-- [[D-382 - Tirar com a lista incompleta na tela deixa o resto depois na|D-382]] · Tirar com a lista incompleta na tela deixa o resto depois na ordem que tinha
-- [[D-383 - A montagem com varios pedidos numa rota que ja existe entra no|D-383]] · A montagem com vários pedidos numa rota que já existe entra no fim
-- [[D-384 - A parada avulsa nova segue a regra do lugar mais perto|D-384]] · A parada avulsa nova segue a regra do lugar mais perto
-- [[D-385 - Na montagem um pedido so conta como programar sozinho|D-385]] · Na montagem um pedido só conta como programar sozinho
-- [[D-386 - Dois pedidos no mesmo ponto do mapa ficam juntos o novo antes|D-386]] · Dois pedidos no mesmo ponto do mapa ficam juntos o novo antes
-- [[D-387 - O aviso Busca de endereco fora do ar para admin e logistica|D-387]] · O aviso Busca de endereço fora do ar para admin e logística
-- [[D-388 - A busca que volta nao vira aviso no sino|D-388]] · A busca que volta não vira aviso no sino
-- [[D-389 - A chamada que so leu do guardado tambem avisa a busca fora|D-389]] · A chamada que só leu do guardado também avisa a busca fora
+Com os títulos o mapa passaria do teto: o título de cada uma está em [[PLT - Decisoes de Produto]].
+
+[[D-156 - A rota aceita QUALQUER pedido vivo o Lancar para ROTAS deixa|D-156]] · [[D-158 - A equipe da rota so entregador|D-158]] · [[D-159 - O mapa da rota So a ida e So a volta o Programar sem espaco|D-159]] · [[D-170 - Lancar direto para as entregas e Devolver|D-170]] · [[D-213 - Reabrir a entrega|D-213]] · [[D-214 - A volta atras no Tiny|D-214]] · [[D-216 - O acerto do 13787|D-216]] · [[D-217 - O Google Maps e o Waze vao pelo ENDERECO do pedido o ponto|D-217]] · [[D-218 - A busca de endereco confere o BAIRRO e o CEP o que ela nao|D-218]] · [[D-277 - O dia da entrega nunca fica antes do dia em que o pedido|D-277]] · [[D-278 - A hora guardada para um dia passado e o fim do expediente|D-278]] · [[D-279 - No calendario das rotas o entregue aparece no dia REAL com|D-279]] · [[D-280 - Desfazer do dia e o toque repetido contam pelo dia em que|D-280]] · [[D-281 - A correcao do dia da entrega motivo opcional registro novo|D-281]] · [[D-283 - Detalhes da entrega no dia real|D-283]] · [[D-321 - O Tiny mudando o endereco por fora vence e avisa|D-321]] · [[D-322 - Os detalhes do endereco do pedido|D-322]] · [[D-323 - Editar a parada avulsa|D-323]] · [[D-324 - Em Ja programadas o selo do endereco alterado fica na janela|D-324]] · [[D-326 - Os detalhes da peca que sai e volta pela entrega parcial|D-326]] · [[D-328 - Onde o pedido mostra Entregue em parte N de M e a parada|D-328]] · [[D-329 - So a logistica o PCP e o admin escolhem Limpar da producao|D-329]] · [[D-334 - Os pedidos entregues em parte antes desta sessao|D-334]] · [[D-340 - A lista de pedidos ganha uma porta nova no banco com a hora do|D-340]] · [[D-341 - A hora da entrega so aparece quando e a hora de verdade|D-341]] · [[D-342 - O texto da linha da entrega na lista de pedidos dia escolhido|D-342]] · [[D-344 - A busca geral diz Entregue em pelo dia real da entrega|D-344]] · [[D-346 - Depois que o resto e entregue o selo Entregue em parte some|D-346]] · [[D-347 - K ainda em producao so com deixar em producao e o pedido|D-347]] · [[D-348 - O Calendario da Programacao fica sem o selo Entregue em parte|D-348]] · [[D-349 - Em Entregues hoje o aviso em parte vira o selo com os numeros|D-349]] · [[D-350 - ROTAS Entregas fica como estava sem o selo novo|D-350]] · [[D-376 - Incluir um pedido na montagem poe ele onde o caminho aumenta|D-376]] · [[D-377 - A numeracao sem buracos da rota e so na tela|D-377]] · [[D-378 - A faixa da busca fora so em Rotas e para quem tem endereco|D-378]] · [[D-379 - Os textos dos avisos da busca e da montagem|D-379]] · [[D-380 - A pausa entre consultas a Geoapify e as consultas por endereco|D-380]] · [[D-381 - O nao achei fica registrado como procurado pela Geoapify|D-381]] · [[D-382 - Tirar com a lista incompleta na tela deixa o resto depois na|D-382]] · [[D-383 - A montagem com varios pedidos numa rota que ja existe entra no|D-383]] · [[D-384 - A parada avulsa nova segue a regra do lugar mais perto|D-384]] · [[D-385 - Na montagem um pedido so conta como programar sozinho|D-385]] · [[D-386 - Dois pedidos no mesmo ponto do mapa ficam juntos o novo antes|D-386]] · [[D-387 - O aviso Busca de endereco fora do ar para admin e logistica|D-387]] · [[D-388 - A busca que volta nao vira aviso no sino|D-388]] · [[D-389 - A chamada que so leu do guardado tambem avisa a busca fora|D-389]] · [[D-394 - A distancia para conferir o pino contra o CEP e 1 5 km|D-394]] · [[D-395 - A busca digitada nao usa mais a memoria de buscas|D-395]] · [[D-396 - O lugar que vem no lugar da rua e o primeiro que o mapa|D-396]] · [[D-397 - Salvar assim mesmo no aviso libera o botao e nao salva sozinho|D-397]] · [[D-398 - So o pino novo e conferido|D-398]] · [[D-399 - O toque em pino a conferir mostra as rotas inteiras|D-399]] · [[D-400 - A lista do pino a conferir conta de hoje em diante pelo dia da|D-400]]
 
 ## Revisadas por outra (11) — só para a história
 

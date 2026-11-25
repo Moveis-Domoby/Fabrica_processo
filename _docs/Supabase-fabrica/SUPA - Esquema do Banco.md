@@ -29,7 +29,7 @@ Schema Postgres: **`public`** · Todas as tabelas com **RLS ligado e ZERO polici
 - [[Banco - Filas e Integracoes Tiny e n8n 2]] (18.3 KB)
 - [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]] (21.0 KB)
 - [[Banco - Logistica ROTAS e Entregas 1]] (18.0 KB)
-- [[Banco - Logistica ROTAS e Entregas 2]] (22.9 KB)
+- [[Banco - Logistica ROTAS e Entregas 2]] (25.4 KB)
 - [[Banco - PCP e Liberacao 1]] (13.8 KB)
 - [[Banco - PCP e Liberacao 2]] (19.0 KB)
 - [[Banco - PCP e Liberacao 3]] (5.5 KB)

@@ -1,7 +1,7 @@
 ---
 titulo: "Mapa — Sessões e handoffs (uma linha por sessão)"
 tipo: mapa
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [mapa, moc, sessoes, handoffs]
 ---
 
@@ -11,7 +11,10 @@ tags: [mapa, moc, sessoes, handoffs]
 
 ## Sessões (a mais nova primeiro)
 
-- **subida de 24/11** · juntou a 49 e as 52–56 num ramo só · [[handoff_2026_11_24_subida_juntar_entregas|handoff]]
+- **subida de 25/11** · a subida de 24/11 posta em dia com a main de 25/11 (a 57 e os ajustes); **substitui a de 24/11** · [[handoff_2026_11_25_subida_atualizada|handoff]] · [[SUBIDA-2026-11-25|diário]]
+- **planejamento de 25/11** · o ponto do Google na busca de endereços (nada codado) · [[handoff_2026_11_25_planejamento_ponto_do_google|handoff]]
+- **57** · [[SESSAO-57 - O Pino Certo]] · [[handoff_2026_11_24_sessao57_pino_certo|handoff]] · [[SESSAO-57|diário]] — com os ajustes de 24/11 (a aba Programar avisa o ponto aproximado) e 25/11 (o CEP pelo navegador)
+- **subida de 24/11** · ⛔ substituída pela de 25/11 (não subir) · juntou a 49 e as 52–56 num ramo só · [[handoff_2026_11_24_subida_juntar_entregas|handoff]]
 - **56** · [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · [[handoff_2026_11_23_sessao56_busca_geoapify_ordem_da_rota|handoff]] · [[SESSAO-56|diário]]
 - **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]] · [[SESSAO-55|diário]]
 - **54** · [[SESSAO-54 - Comercial - Janelas da Plataforma e Limpeza da Funcao Antiga]] · [[handoff_2026_11_18_sessao54_comercial_janelas_e_limpeza|handoff]] · [[SESSAO-54|diário]]

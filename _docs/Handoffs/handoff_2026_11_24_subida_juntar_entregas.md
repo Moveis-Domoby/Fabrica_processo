@@ -8,6 +8,9 @@ tags: [handoff, subida]
 
 # 📋 Handoff — 24/11/2026 · a subida que junta as entregas aprovadas (fila do Escritório)
 
+> [!danger] ⛔ SUBSTITUÍDA em 25/11 — não subir este ramo
+> A main andou depois desta subida (a 57, o ajuste de 24/11 já aplicado no banco, o CEP pelo navegador). A subida que vale é a [[handoff_2026_11_25_subida_atualizada|subida de 25/11]]: ela traz tudo isto por cima da main de 25/11 e acerta a porta da aba Programar (aplicar a atualização da 53 como está aqui apagaria o aviso do ponto aproximado).
+
 Diário técnico: [[SUBIDA-2026-11-24]].
 
 ## 1. O que o dono pediu
