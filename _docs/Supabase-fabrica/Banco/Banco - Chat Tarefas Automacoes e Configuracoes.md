@@ -52,3 +52,5 @@ tags: [supabase, banco-de-dados, esquema, dominio/config]
   - **`20261118130100_plt_dashboards_numa_leitura.sql`:** `plt_fn_dash_pessoas_abertura(numeric, bigint, boolean, bigint, boolean, boolean, integer)` · `plt_fn_dash_qualidade_abertura(numeric, bigint, boolean)` · `plt_fn_meu_desempenho_abertura(numeric, integer)`.
   - **`20261118130200_plt_configuracoes_numa_leitura.sql`:** `plt_fn_equipe_abertura()` · `plt_fn_api_abertura()` · `plt_fn_caminhoes_abertura(boolean, boolean)` · `plt_fn_automacoes_abertura(bigint, integer, integer, boolean, boolean, boolean)` · `plt_fn_tempo_desligar_abertura()`.
   - Bateria: bloco "SESSAO-55" (130 provas).
+
+- **↪️ 25/11/2026 — as três da SESSAO-55 (`20261118130000`, `20261118130100`, `20261118130200`) ✅ ligado pela fila em 25/11/2026 ~04:55 (publicação da subida de 25/11, com a autorização do dono de 24/11 para a fila publicar).** Antes: as 9 portas não existiam, as 13 que elas chamam existiam, a leitura por coluna de `plt_usuarios` completa. Depois: as 9 existem, só leem, rodam com a permissão de quem chama, visitante não chama.

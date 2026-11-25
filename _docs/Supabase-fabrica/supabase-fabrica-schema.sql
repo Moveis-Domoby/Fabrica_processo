@@ -1075,3 +1075,23 @@ create index if not exists notas_fiscais_pedido_id_idx   on public.notas_fiscais
 --                                    Tiny passa)
 -- O aplicador conferiu a integração idêntica (estrutura e linhas) depois de cada
 -- uma das 4 atualizações da SESSAO-48.
+
+-- ---------------------------------------------------------------------------
+-- 16 · SUBIDA DE 25/11/2026 (ligada pela fila em 25/11/2026 ~04:55) — nenhuma
+--      tabela, coluna, índice, gatilho ou política mudou; nenhuma tabela da
+--      integração foi tocada (o aplicador conferiu estrutura e linhas
+--      idênticas depois de cada uma). Só funções e uma visão:
+-- ---------------------------------------------------------------------------
+-- 20261118100000 — plt_fn_pedidos_pagina (nova); plt_fn_busca_cards e
+--                  plt_fn_devolucao_detalhe recriadas (a mesma data de entrega)
+-- 20261118110000 — plt_privado.vw_entregue_em_parte (visão nova, sem leitura
+--                  para authenticated/anon); plt_fn_programadas (+ a coluna
+--                  entregue_em_parte), plt_fn_expedicao e plt_fn_entregas_do_dia
+-- 20261118120000 — fn_dashboard_transitions(timestamptz, timestamptz) REMOVIDA
+--                  (a fn_dashboard_transitions_summary segue)
+-- 20261118120100 — fn_filter_customers aceita sortOrder nos filtros
+-- 20261118130000 / 130100 / 130200 — 9 portas de abertura novas (só leitura)
+-- 20261125100000 — plt_fn_programacao_candidatos = a de 24/11 (20261124130000,
+--                  o ponto aproximado) + a chave entregue_em_parte
+-- Também já no ar e ainda sem seção própria aqui: as três da SESSAO-56 e a
+-- 20261124130000 (24/11) — o detalhe está nas notas do domínio.

@@ -21,15 +21,15 @@ Schema Postgres: **`public`** · Todas as tabelas com **RLS ligado e ZERO polici
 ## As notas do banco, por domínio
 
 - [[Banco - Cards e Eventos do Kanban]] (10.7 KB)
-- [[Banco - Chat Tarefas Automacoes e Configuracoes]] (23.7 KB)
-- [[Banco - Comercial]] (10.9 KB)
+- [[Banco - Chat Tarefas Automacoes e Configuracoes]] (24.2 KB)
+- [[Banco - Comercial]] (11.5 KB)
 - [[Banco - Estoque e Reposicao]] (16.9 KB)
-- [[Banco - Expedicao Devolucao e Cancelamento]] (18.6 KB)
+- [[Banco - Expedicao Devolucao e Cancelamento]] (19.1 KB)
 - [[Banco - Filas e Integracoes Tiny e n8n 1]] (20.5 KB)
 - [[Banco - Filas e Integracoes Tiny e n8n 2]] (18.3 KB)
 - [[Banco - Integracao Tiny - Pedidos Clientes e Produtos]] (21.0 KB)
 - [[Banco - Logistica ROTAS e Entregas 1]] (18.0 KB)
-- [[Banco - Logistica ROTAS e Entregas 2]] (25.4 KB)
+- [[Banco - Logistica ROTAS e Entregas 2]] (26.2 KB)
 - [[Banco - PCP e Liberacao 1]] (13.8 KB)
 - [[Banco - PCP e Liberacao 2]] (19.0 KB)
 - [[Banco - PCP e Liberacao 3]] (5.5 KB)
@@ -133,7 +133,7 @@ A primeira nota é a que mais fala da tabela. Função, porta e gatilho: procure
 - `plt_tiny_registros` → [[Banco - Filas e Integracoes Tiny e n8n 2]]
 - `plt_tiny_registros_mes` → [[Banco - Filas e Integracoes Tiny e n8n 2]]
 - `plt_usuario_setores` → [[Banco - Plataforma - Visao Geral das Tabelas plt]]
-- `plt_usuarios` → [[Banco - Usuarios Acesso e Logs]] · também em [[Banco - Chat Tarefas Automacoes e Configuracoes]], [[Banco - Comercial]], [[Banco - Plataforma - Visao Geral das Tabelas plt]] e mais 3
+- `plt_usuarios` → [[Banco - Chat Tarefas Automacoes e Configuracoes]] · também em [[Banco - Usuarios Acesso e Logs]], [[Banco - Comercial]], [[Banco - Plataforma - Visao Geral das Tabelas plt]] e mais 3
 - `plt_visualizacoes` → [[Banco - Plataforma - Visao Geral das Tabelas plt]] · também em [[Banco - Tempos e Paineis]]
 - `plt_webhook_entregas` → [[Banco - Filas e Integracoes Tiny e n8n 1]]
 - `plt_webhooks` → [[Banco - Filas e Integracoes Tiny e n8n 1]] · também em [[Banco - Logistica ROTAS e Entregas 1]], [[Banco - Tablet e TV]]

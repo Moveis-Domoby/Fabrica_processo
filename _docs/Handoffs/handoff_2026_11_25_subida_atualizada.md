@@ -65,21 +65,22 @@ Os passos da subida de 24/11 continuam valendo ([[handoff_2026_11_24_subida_junt
 
 **1. Banco — só as atualizações novas, nesta ordem:**
 
-- **1a · a da 53** (`20261118110000_plt_entregue_em_parte_nas_telas.sql`) — agora **sem** a porta de Programar.
+- **1a · a da 53** (`20261118110000_plt_entregue_em_parte_nas_telas.sql`) — agora **sem** a porta de Programar. **✅ ligado pela fila em 25/11/2026 ~04:52** (antes e depois bateram; a Expedição só diferia no fim de linha guardado pelo banco).
   - *Antes:* Já programadas, Expedição e Entregas do dia com o md5 "antes" da tabela; a visão `plt_privado.vw_entregue_em_parte` ainda não existe (`select to_regclass('plt_privado.vw_entregue_em_parte')` = nulo); `plt_fn_programadas` com uma assinatura só; Programar com o md5 de 24/11; anotar um pedido entregue em parte (passo 0 do [[handoff_2026_11_18_sessao53_entregue_em_parte_nas_telas|handoff da 53]], seção 6).
   - *Depois:* a visão existe e quem está logado não a lê (`has_table_privilege('authenticated', 'plt_privado.vw_entregue_em_parte', 'select')` = falso); as três portas com o md5 "depois"; `plt_fn_programadas` com uma assinatura e a coluna `entregue_em_parte`; **Programar continua com o md5 de 24/11** (esta atualização não toca nela).
-- **1b · a nova da subida** (`20261125100000_plt_candidatos_entregue_em_parte.sql`) — **só depois da 1a** (usa a visão).
+- **1b · a nova da subida** (`20261125100000_plt_candidatos_entregue_em_parte.sql`) — **só depois da 1a** (usa a visão). **✅ ligado pela fila em 25/11/2026 ~04:55** (antes `ede1286…`, depois `e126c5a…`; 27 pedidos com as chaves do ponto aproximado e do CEP; nenhum pedido aberto entregue em parte hoje para ver o selo).
   - *Antes:* Programar com o md5 `ede1286…` (a de 24/11). Se não for, parar.
   - *Depois:* Programar com o md5 `e126c5a…`; uma assinatura só; visitante não chama (`has_function_privilege('anon', …, 'execute')` = falso); chamada como logística (em transação desfeita, como no ajuste de 24/11), os pedidos no centro da cidade **continuam** com `geo_aproximado = 'cidade'` e o CEP, e o pedido anotado no 1a traz `entregue_em_parte`.
-- **1c · a da 52** (`20261118100000_plt_datas_e_textos_certos.sql`) — conferências na [[handoff_2026_11_18_sessao52_datas_e_textos_certos|seção 6 do handoff da 52]] (corpo vivo da busca e da devolução igual ao das atualizações de onde vieram; a porta nova da lista não existe → depois existe, 20 linhas, visitante não chama).
-- **1d · as três da 55**, nesta ordem (`20261118130000…`, `20261118130100…`, `20261118130200…`) — [[handoff_2026_11_18_sessao55_telas_numa_leitura|seção 7 do handoff da 55]] (as 9 portas novas não existem → existem, só leem, com a permissão de quem chama, visitante não chama).
-- **1e · a da ordem dos clientes da 54** (`20261118120100_plt_comercial_clientes_ordem_no_banco.sql`) — [[handoff_2026_11_18_sessao54_comercial_janelas_e_limpeza|seção 6 do handoff da 54]], passos 0a e 1 (guardar as 50 primeiras linhas antes; depois, as mesmas na mesma ordem).
+- **1c · a da 52** (`20261118100000_plt_datas_e_textos_certos.sql`) **✅ ligado pela fila em 25/11/2026 ~04:51** (foi a primeira, pela ordem dos arquivos) — conferências na [[handoff_2026_11_18_sessao52_datas_e_textos_certos|seção 6 do handoff da 52]] (corpo vivo da busca e da devolução igual ao das atualizações de onde vieram; a porta nova da lista não existe → depois existe, 20 linhas, visitante não chama).
+- **1d · as três da 55** **✅ ligado pela fila em 25/11/2026 ~04:54**, nesta ordem (`20261118130000…`, `20261118130100…`, `20261118130200…`) — [[handoff_2026_11_18_sessao55_telas_numa_leitura|seção 7 do handoff da 55]] (as 9 portas novas não existem → existem, só leem, com a permissão de quem chama, visitante não chama).
+- **1e · a da ordem dos clientes da 54** (`20261118120100_plt_comercial_clientes_ordem_no_banco.sql`) **✅ ligado pela fila em 25/11/2026 ~04:53** (as mesmas 50 linhas na mesma ordem) — [[handoff_2026_11_18_sessao54_comercial_janelas_e_limpeza|seção 6 do handoff da 54]], passos 0a e 1 (guardar as 50 primeiras linhas antes; depois, as mesmas na mesma ordem).
   - ⏸️ **A que remove a função antiga das transições do Comercial (`20261118120000`) fica para OUTRO dia, com OK separado** (é exclusão).
+  - ↪️ **25/11 03:30 — o dono respondeu "Pode apagar junto"** (item 7 do pedido da fila): a remoção entrou nesta publicação. **✅ ligado pela fila em 25/11/2026 ~04:53** — antes, nada no banco dependia dela nem a citava; depois, ela não existe e a do resumo segue.
 - **Já no ar — nada a fazer, só conferir que continuam:** as três da 56 (24/11) e a do ajuste de 24/11 (`20261124130000`). Nenhuma das 1a–1e mexe nas portas da rota nem no catálogo dos avisos.
 
-**2. Funções do servidor:** nada a publicar. A função de busca de endereço no ar (a versão 16, de 25/11) é a mesma desta subida.
+**2. Funções do servidor:** nada a publicar (✅ conferido pela fila em 25/11/2026: nenhuma função alterada; a main já trazia a busca de endereço publicada). A função de busca de endereço no ar (a versão 16, de 25/11) é a mesma desta subida.
 
-**3. "Subir para o site" deste ramo** — só depois do passo 1 (a lista de pedidos e as telas de uma leitura precisam do banco novo). O site de hoje funciona com o banco novo, então o passo 1 pode ser feito com calma antes.
+**3. "Subir para o site" deste ramo** (✅ feito pela fila em 25/11/2026, logo depois do banco) — só depois do passo 1 (a lista de pedidos e as telas de uma leitura precisam do banco novo). O site de hoje funciona com o banco novo, então o passo 1 pode ser feito com calma antes.
 
 **4. Validação no navegador depois de ligar:** o roteiro da seção 6, passo 4, da [[handoff_2026_11_24_subida_juntar_entregas|subida de 24/11]], mais a seção 3 daqui (os dois avisos no mesmo cartão da aba Programar).
 
