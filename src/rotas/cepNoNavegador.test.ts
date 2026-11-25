@@ -47,6 +47,8 @@ describe('o CEP no meio do endereço', () => {
 
 describe('a consulta do CEP pelo navegador', () => {
   it('pergunta UMA vez por CEP e devolve a resposta crua', async () => {
+    // o parâmetro tipado só serve para ler a URL chamada em mock.calls (o lint da casa não aceita o "_" sem uso)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const buscar = vi.fn(async (_url: string) => resposta(200, CEP_13975))
     expect(await respostaDoCep('59145-700', buscar)).toEqual(CEP_13975)
     expect(await respostaDoCep('59145700', buscar)).toEqual(CEP_13975)
