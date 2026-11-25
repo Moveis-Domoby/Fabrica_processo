@@ -2,7 +2,7 @@
 titulo: "Banco — Expedicao Devolucao e Cancelamento"
 tipo: esquema-dominio
 dominio: expedicao
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [supabase, banco-de-dados, esquema, dominio/expedicao]
 ---
 
@@ -32,7 +32,7 @@ tags: [supabase, banco-de-dados, esquema, dominio/expedicao]
   - **`20261111050000_plt_abertura_motivo.sql`** (frente 5 — [[D-305 - A trilha diz por que a pagina abriu|D-305]]): `drop function public.plt_fn_abertura(text, boolean)` + **`public.plt_fn_abertura(text, boolean, jsonb default null)`** ([[Memoria - Banco e SQL 2#A-12|A-12]] — sem sobrecarga; `security invoker` como antes; `grant` só a `authenticated`): a 1ª abertura de cada página grava em `plt_logs_atividade.contexto` a marca `abertura`, o tipo de carga do navegador (`navigate`/`reload`/`back_forward`), se a aba foi descartada, o porquê da plataforma (`versao_nova`, `versao_nova_botao`, `pedaco_sumido`, `troca_setor`) e a versão (hexadecimal) — só valores conhecidos. Bateria: bloco "SESSAO-48 · frente 5" (5 conferências) e a assinatura nova nas 2 conferências de permissão do bloco 78.
   - **Manutenção `supabase/manutencao/2026-11-11_cancelado_vira_gesto.sql`** (✅ RODADA em 11/11/2026 ~05:13 com o OK do dono, depois do ensaio com os mesmos números: 53 peças canceladas, produção 127 → 74, 34 perderam o pedido, só o 13622 com aviso — 6 avisos no sino, a Estante Basic 7 nichos sem as 2 reservadas p/ produção): ensaio (conta antes/depois e desfaz) ou aplicar (`plt.acerto_s48 = 'aplicar'`): cada peça viva nas colunas que cancelam passa por `fn_cancelar_fabricacao` (origem `api`, data do dia), o sino uma vez por pedido, `fn_estoque_numeros_recontar()`.
 
-- **SESSAO-52 — datas e textos certos na busca, na devolução e na lista de pedidos ([[D-340 - A lista de pedidos ganha uma porta nova no banco com a hora do|D-340]]…[[D-345 - A Auditoria traduz a configuracao do painel de tempos na hora|D-345]]; ⏳ NÃO aplicada — junto na subida de 24/11, espera o OK do dono):**
+- **SESSAO-52 — datas e textos certos na busca, na devolução e na lista de pedidos ([[D-340 - A lista de pedidos ganha uma porta nova no banco com a hora do|D-340]]…[[D-345 - A Auditoria traduz a configuracao do painel de tempos na hora|D-345]]; ⏳ NÃO aplicada — junto na subida de 24/11, espera o OK do dono ↪️ **25/11: ✅ NO AR** — ligada pela fila em 25/11 (o bloco de 25/11 no fim desta nota)):**
   - **`20261118100000_plt_datas_e_textos_certos.sql`** (nenhuma tabela, coluna, índice, gatilho ou política): porta nova **`plt_fn_pedidos_pagina(text, integer, integer, boolean) → jsonb`** (a lista de pedidos de sempre + `registrado_em`, a hora do registro lida por subconsulta na chave — a junção virava varredura); `plt_fn_busca_cards` ganha a chave `entregue_em` (o dia real da entrega); `plt_fn_devolucao_detalhe` ganha `registrado_em` na linha `pedido_entregue` do histórico.
   - Bateria: bloco "SESSAO-52" (pedidos 99561–99569, SKU SX52, produto do Tiny 1952201). Detalhe em [[SESSAO-52]] e no [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]].
 

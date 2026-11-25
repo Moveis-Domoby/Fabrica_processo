@@ -1095,3 +1095,98 @@ create index if not exists notas_fiscais_pedido_id_idx   on public.notas_fiscais
 --                  o ponto aproximado) + a chave entregue_em_parte
 -- Também já no ar e ainda sem seção própria aqui: as três da SESSAO-56 e a
 -- 20261124130000 (24/11) — o detalhe está nas notas do domínio.
+-- ↪️ 25/11/2026 (cofre em dia): a seção própria é a 17, logo abaixo.
+
+-- ---------------------------------------------------------------------------
+-- 17 · O RETRATO DEPOIS DE 24 E 25/11/2026 — as 12 atualizações da plataforma
+--      NA ORDEM EM QUE FORAM APLICADAS EM PRODUÇÃO (a de 24/11 pelo Cowork com
+--      o OK do dono; a de 25/11 pelo publicador da fila — a ordem está no
+--      relatório da publicação da subida de 25/11 e no handoff
+--      handoff_2026_11_25_subida_atualizada). Conferido no banco vivo em
+--      25/11/2026 05:10: as portas novas existem, Programar tem o ponto
+--      aproximado e o selo, e a função antiga do Comercial não existe mais.
+--      Como nas seções 11 a 16, o DDL completo mora nas migrations; aqui fica
+--      a assinatura do que existe (este arquivo é o retrato da integração que
+--      a bateria carrega — por isso a plataforma entra só em comentário).
+--      NENHUMA tabela, coluna, índice, gatilho ou política mudou; nenhuma
+--      tabela da integração foi tocada (impressão digital idêntica).
+-- ---------------------------------------------------------------------------
+--
+-- ── 24/11/2026 ~00:40–00:58 · SESSAO-56 (a ordem da rota e a busca de endereço)
+--  1. 20261124100000_plt_ordem_da_rota_nao_muda.sql
+--       nova     plt_privado.fn_rota_ordem_que_fica(date, bigint, integer, jsonb)
+--       trocada  public.plt_fn_desprogramar_entrega(bigint, jsonb)
+--                  (sai a de um argumento só: (bigint))
+--       trocada  public.plt_fn_parada_avulsa_remover(bigint, jsonb)
+--                  (sai a (bigint))
+--       trocada  public.plt_fn_programar_entrega(bigint, date, bigint, integer, jsonb)
+--                  (sai a (bigint, date, bigint, integer)) — o último argumento
+--                  é a ordem que a tela mostra
+--  2. 20261124110000_plt_entra_no_lugar_mais_perto.sql
+--       nova     plt_privado.fn_distancia_km(double precision, double precision,
+--                  double precision, double precision)
+--       nova     plt_privado.fn_rota_inserir(date, bigint, integer, text, bigint)
+--       recriada public.plt_fn_programar_entrega(bigint, date, bigint, integer, jsonb)
+--       recriada public.plt_fn_programar_rota(date, bigint, bigint[], bigint[], integer)
+--       recriada public.plt_fn_programar_rota_paradas(date, bigint, integer,
+--                  bigint[], jsonb, jsonb)
+--       recriada public.plt_fn_parada_avulsa_salvar(bigint, date, bigint, integer,
+--                  text, text, double precision, double precision, text, jsonb, uuid)
+--  3. 20261124120000_plt_aviso_busca_fora.sql
+--       recriada plt_privado.fn_avisos_catalogo() (+ o aviso busca_endereco_fora)
+--       nova     public.plt_fn_busca_fora_avisar() — só service_role executa
+--       plt_geocache: fonte nova 'geoapify' e a linha reservada
+--                  'estado:busca-de-endereco' (dado, não estrutura)
+--
+-- ── 24/11/2026 · ajuste da SESSAO-57 (a aba Programar avisa o ponto aproximado)
+--  4. 20261124130000_plt_candidatos_ponto_aproximado.sql
+--       recriada public.plt_fn_programacao_candidatos(text, text, text, text,
+--                  text, text, integer) — + o ponto aproximado, o ponto marcado
+--                  à mão e o CEP
+--
+-- ── 25/11/2026 ~04:51–04:55 · SUBIDA DE 25/11 (SESSÕES 52, 53, 54 e 55)
+--  5. 20261118100000_plt_datas_e_textos_certos.sql                      (52)
+--       recriada public.plt_fn_busca_cards(text, bigint, integer)
+--       recriada public.plt_fn_devolucao_detalhe(bigint)
+--       nova     public.plt_fn_pedidos_pagina(text, integer, integer, boolean)
+--  6. 20261118110000_plt_entregue_em_parte_nas_telas.sql                (53)
+--       nova     plt_privado.vw_entregue_em_parte (visão; sem leitura para
+--                  public, anon e authenticated)
+--       trocada  public.plt_fn_programadas(boolean, date, bigint, integer,
+--                  integer, text) — a mesma assinatura, + a coluna
+--                  entregue_em_parte jsonb no retorno
+--       recriada public.plt_fn_expedicao(text, text, integer, integer)
+--       recriada public.plt_fn_entregas_do_dia(date, bigint, integer)
+--  7. 20261118120000_plt_comercial_remove_funcao_antiga.sql             (54)
+--       REMOVIDA public.fn_dashboard_transitions(timestamp with time zone,
+--                  timestamp with time zone) — com o "Pode apagar junto" do dono
+--                  (25/11 03:30). NÃO EXISTE MAIS. Segue:
+--                  public.fn_dashboard_transitions_summary
+--  8. 20261118120100_plt_comercial_clientes_ordem_no_banco.sql          (54)
+--       recriada public.fn_filter_customers(jsonb, integer, integer) — aceita
+--                  a chave sortOrder dentro dos filtros
+--  9. 20261118130000_plt_meu_trabalho_numa_leitura.sql                  (55)
+--       nova     public.plt_fn_meu_trabalho(text, boolean)
+-- 10. 20261118130100_plt_dashboards_numa_leitura.sql                    (55)
+--       nova     public.plt_fn_dash_pessoas_abertura(numeric, bigint, boolean,
+--                  bigint, boolean, boolean, integer)
+--       nova     public.plt_fn_dash_qualidade_abertura(numeric, bigint, boolean)
+--       nova     public.plt_fn_meu_desempenho_abertura(numeric, integer)
+-- 11. 20261118130200_plt_configuracoes_numa_leitura.sql                 (55)
+--       nova     public.plt_fn_equipe_abertura()
+--       nova     public.plt_fn_api_abertura()
+--       nova     public.plt_fn_caminhoes_abertura(boolean, boolean)
+--       nova     public.plt_fn_automacoes_abertura(bigint, integer, integer,
+--                  boolean, boolean, boolean)
+--       nova     public.plt_fn_tempo_desligar_abertura()
+--     (as 9 portas de abertura da 55: só leitura, security invoker, execução
+--      para authenticated; public e anon sem execução)
+-- 12. 20261125100000_plt_candidatos_entregue_em_parte.sql       (subida 25/11)
+--       recriada public.plt_fn_programacao_candidatos(text, text, text, text,
+--                  text, text, integer) — a versão viva de 24/11 (item 4) + a
+--                  chave entregue_em_parte. É A VERSÃO VIVA: a próxima que
+--                  recriar esta porta parte dela.
+--
+-- Já estava no ar e NÃO rodou de novo em 25/11: 20261109030000_plt_entrega_dia_real.sql
+-- (de 09/11; só marcada como já aplicada — os dois "update" dela não foram rodados).
+-- Mudança de dados em 24 e 25/11: nenhuma.

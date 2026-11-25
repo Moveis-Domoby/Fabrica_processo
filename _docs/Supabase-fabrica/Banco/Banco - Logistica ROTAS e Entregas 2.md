@@ -2,7 +2,7 @@
 titulo: "Banco — Logistica ROTAS e Entregas (parte 2 de 2)"
 tipo: esquema-dominio
 dominio: logistica-rotas
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [supabase, banco-de-dados, esquema, dominio/logistica-rotas]
 ---
 
@@ -35,7 +35,7 @@ tags: [supabase, banco-de-dados, esquema, dominio/logistica-rotas]
 - **Ajuste de 06/11/2026 — os números que batem entre as telas ([[D-267 - Pedido cancelado ou excluido no Tiny sai de ROTAS Entregas|D-267]]…[[D-270 - Fora do calendario conta so o que nao aparece na grade|D-270]]; ✅ APLICADA em 09/11/2026 ~20:45 de Natal (23:45 UTC), junto com a SESSAO-47, com o OK do dono na conversa — escrita por outra sessão num ramo local e juntada ao ramo da 47, que foi construída por cima dela; detalhe em `Plataforma/Execucao/AJUSTE - Numeros que batem entre as telas.md`):**
   - **`20261106030000_plt_numeros_que_batem.sql`** (nenhuma tabela, coluna ou índice): `plt_fn_rotas` ("A entregar" sem o cancelado/excluído no Tiny; o já entregue fica no histórico), `plt_fn_dash_agora` e `plt_fn_dash_dia` (a Visão do dia conta o que o quadro mostra), `fn_validar_standby` + **`fn_standby_fechar_no_cancelamento`** no gatilho **`plt_eventos_zz_standby_cancelado`** (o cancelamento no Tiny fecha o stand-by, por fato), a visão **`plt_privado.vw_standby_na_aba`** (a regra da aba Stand-by do PCP, lida também pelo painel de Motivos), `plt_fn_dash_motivos` e `plt_fn_rotas_calendario` ("fora do calendário" só o que não está na grade).
 
-- **SESSAO-53 — "Entregue em parte (N de M)" também na Programação, na Expedição e nas Entregas do dia ([[D-346 - Depois que o resto e entregue o selo Entregue em parte some|D-346]]…[[D-350 - ROTAS Entregas fica como estava sem o selo novo|D-350]]; ⏳ NÃO aplicada — junto na subida de 25/11 (que substitui a de 24/11), espera o OK do dono):**
+- **SESSAO-53 — "Entregue em parte (N de M)" também na Programação, na Expedição e nas Entregas do dia ([[D-346 - Depois que o resto e entregue o selo Entregue em parte some|D-346]]…[[D-350 - ROTAS Entregas fica como estava sem o selo novo|D-350]]; ⏳ NÃO aplicada — junto na subida de 25/11 (que substitui a de 24/11), espera o OK do dono ↪️ **25/11: ✅ NO AR** — ligada pela fila em 25/11 (o bloco de 25/11 no fim desta nota)):**
   - **`20261118110000_plt_entregue_em_parte_nas_telas.sql`** (nenhuma tabela, coluna, índice ou gatilho): visão nova **`plt_privado.vw_entregue_em_parte`** (card_id, selo — a regra única do selo, contada uma vez); `plt_fn_programadas` devolve + `entregue_em_parte jsonb`; `plt_fn_expedicao` e `plt_fn_entregas_do_dia` ganham a chave `entregue_em_parte` nos itens (↪️ 25/11: `plt_fn_programacao_candidatos` **saiu desta** — vai na `20261125100000`, bloco da subida de 25/11 abaixo) (só quando há).
   - A `20261109030000_plt_entrega_dia_real.sql` ganhou um ajuste **só para a bateria reaplicar** — em produção ela não roda de novo.
   - Bateria: bloco "SESSAO-53" (pedidos 99531–99539, produto 9953001, caminhão TST5353).
@@ -47,7 +47,7 @@ tags: [supabase, banco-de-dados, esquema, dominio/logistica-rotas]
   - **`plt_geocache`:** fonte nova `geoapify`; a linha reservada `estado:busca-de-endereco` (`fonte = 'estado'`, o dado em `rota`: `{fora_desde, avisado}`). Nenhuma tabela, coluna ou índice novo.
   - **Edge Function `geocodificar`** (`index.ts`, `busca.ts`, `fluxo.ts`): lê o segredo `PLT_GEOAPIFY_CHAVE`; Photon de reserva; Nominatim fora; disjuntor.
   - Bateria: blocos "SESSAO-56 · B" (pedidos 956101–956108, caminhão TST5656) e "SESSAO-56 (ajustes) · item 1/2" — rodam por último, depois dos da 53, 52, 55 e 54.
-  - Pendente: `supabase-fabrica-schema.sql` com as assinaturas novas (conferir na próxima sessão que tocar a logística).
+  - Pendente: `supabase-fabrica-schema.sql` com as assinaturas novas (conferir na próxima sessão que tocar a logística). ↪️ ✅ **25/11: feito** — a seção 17 do arquivo traz as 12 atualizações de 24 e 25/11 na ordem em que foram aplicadas, com as assinaturas.
 
 - **SESSAO-57 — o pino certo ([[D-390 - A busca digitada so aceita rua ou casa o lugar vira nao achei|D-390]]…[[D-400 - A lista do pino a conferir conta de hoje em diante pelo dia da|D-400]]; sem atualização do banco; função `geocodificar` publicada — v15 em 24/11, v16 em 25/11 com o CEP pelo navegador, [[D-402 - O ponto do CEP e consultado pelo navegador|D-402]]):**
   - **`plt_geocache`:** nas chaves `avulsa:` (a busca digitada), `fonte = 'aprox_bairro' | 'aprox_cidade'` com **`resolvido = false`** — o lugar achado no lugar da rua, gravado só como registro; as chaves `avulsa:` **não são mais lidas** pela função ([[D-395 - A busca digitada nao usa mais a memoria de buscas|D-395]]). Nenhuma tabela, coluna ou índice novo.
@@ -57,7 +57,7 @@ tags: [supabase, banco-de-dados, esquema, dominio/logistica-rotas]
   - **`20261124130000_plt_candidatos_ponto_aproximado.sql`:** `plt_fn_programacao_candidatos` recriada da `20261112060000` + `ee.cep` na base e, em cada item, `cep`, `geo_manual` (`fonte = 'manual'`) e `geo_aproximado` (o que vem depois de `aprox_`) — a regra de `plt_fn_programadas`. `create or replace`, grants iguais.
   - Bateria: bloco "Ajuste 24/11".
 
-- **Subida de 25/11 — a porta de Programar com o ponto aproximado E o selo (⏳ NÃO aplicada — espera o OK do dono, depois da `20261118110000`):**
+- **Subida de 25/11 — a porta de Programar com o ponto aproximado E o selo (⏳ NÃO aplicada — espera o OK do dono, depois da `20261118110000` ↪️ **25/11: ✅ NO AR** — ligada pela fila em 25/11 (o bloco de 25/11 no fim desta nota)):**
   - **`20261125100000_plt_candidatos_entregue_em_parte.sql`:** `plt_fn_programacao_candidatos` = a versão da `20261124130000` (a viva) + só a chave `entregue_em_parte` (pela `plt_privado.vw_entregue_em_parte`, ligada pela chave do card, só nas linhas da página). A `20261118110000` deixou de recriar esta porta (aplicá-la depois da de 24/11 apagaria o ponto aproximado — [[Memoria - Migrations Aplicador e Ensaio 2#E-328|E-328]]).
   - **Antes de aplicar:** o corpo vivo da porta = o da `20261124130000` (`pg_get_functiondef`); se não for, alguém mexeu depois — parar.
   - Bateria: o bloco "SESSAO-53" reaplica a nova e prova o selo e o ponto aproximado no mesmo cartão; o bloco "Subida 25/11" prova que a 53 não recria mais a porta, que a nova = a de 24/11 + só o selo, e o estado final.

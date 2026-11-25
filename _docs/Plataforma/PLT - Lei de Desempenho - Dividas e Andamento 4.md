@@ -1,7 +1,7 @@
 ---
 titulo: "Lei de Desempenho — as dívidas registradas e o andamento (parte 4 de 4)"
 tipo: lei-dividas
-atualizado: 2026-11-24
+atualizado: 2026-11-25
 tags: [plataforma, desempenho, dividas]
 ---
 
@@ -10,25 +10,25 @@ tags: [plataforma, desempenho, dividas]
 > O §14 de [[PLT - Lei de Desempenho e Escala]]: a tabela das dívidas e o andamento de cada sessão, em ordem de data. **Dívida nova e andamento novo entram no fim da última parte.** Partes: [[PLT - Lei de Desempenho - Dividas e Andamento 1]] · [[PLT - Lei de Desempenho - Dividas e Andamento 2]] · [[PLT - Lei de Desempenho - Dividas e Andamento 3]] · [[PLT - Lei de Desempenho - Dividas e Andamento 4]].
 > Esta parte nasceu em 24/11/2026, na subida que juntou as sessões 52 a 56 (a parte 3 ia passar do teto).
 
-**Andamento (SESSAO-52 · datas e textos certos na busca, na devolução, na lista de pedidos e na Auditoria, 18/11 — [[D-340 - A lista de pedidos ganha uma porta nova no banco com a hora do|D-340]]…[[D-345 - A Auditoria traduz a configuracao do painel de tempos na hora|D-345]]; no ramo, junto na subida de 24/11):**
+**Andamento (SESSAO-52 · datas e textos certos na busca, na devolução, na lista de pedidos e na Auditoria, 18/11 — [[D-340 - A lista de pedidos ganha uma porta nova no banco com a hora do|D-340]]…[[D-345 - A Auditoria traduz a configuracao do painel de tempos na hora|D-345]]; no ramo, junto na subida de 24/11 ↪️ 25/11: ✅ no ar, banco e site, pela subida de 25/11):**
 - **Requisições:** a lista de pedidos segue com uma chamada (a porta nova substitui a antiga na tela); busca e devolução, nenhuma a mais.
 - **Ensaio ×100** (562.700 pedidos; 15.167 entregues, 3.033 com o dia escolhido ou corrigido): a busca 16–38 ms e a devolução 15 ms (dentro do teto; a diferença para antes é ruído); a página nova da lista = a lista de sempre + 1 a 16 ms. A junção com a função que devolve tabela virava varredura — trocada por subconsulta na chave (lição [[Memoria - Banco e SQL 2#E-295|E-295]]).
 - **Pacote:** JS inicial 233,0 KB (teto 250). **Celular e tablet:** as 4 telas sem rolagem lateral.
 - **Dívida nova:** a 38 (abaixo).
 
-**Andamento (SESSAO-53 · "Entregue em parte" na Programação, na Expedição e nas Entregas do dia, 18/11 — [[D-346 - Depois que o resto e entregue o selo Entregue em parte some|D-346]]…[[D-350 - ROTAS Entregas fica como estava sem o selo novo|D-350]]; no ramo, junto na subida de 24/11):**
+**Andamento (SESSAO-53 · "Entregue em parte" na Programação, na Expedição e nas Entregas do dia, 18/11 — [[D-346 - Depois que o resto e entregue o selo Entregue em parte some|D-346]]…[[D-350 - ROTAS Entregas fica como estava sem o selo novo|D-350]]; no ramo, junto na subida de 24/11 ↪️ 25/11: ✅ no ar, banco e site, pela subida de 25/11):**
 - **1 requisição por tela:** nenhuma porta nova; o dado novo entra na resposta que já existia, e só o pedido entregue em parte paga a conta (10 blocos, 0,8 ms por pedido na versão final).
 - **Ensaio ×100** (máquina carregada; vale a comparação e a contagem de blocos): Já programadas com 50 linhas com o selo 63.037 → 64.111 blocos (+1,7%); Entregas do dia 130 → 154 ms; Programar e Expedição sem diferença fora do ruído.
 - ✅ **Pago (de produto):** o item 1 de [[D-328 - Onde o pedido mostra Entregue em parte N de M e a parada|D-328]] (fica de fora o Calendário).
 - **Dívidas:** nenhuma nova. As portas da aba Programar e da Expedição seguem lentas no ×100 como já estavam (dívidas 25 e 30).
 
-**Andamento (SESSAO-54 · Comercial: janelas da plataforma e a ordem da tabela de clientes no banco, 18/11 — [[D-351 - A janela de confirmacao do Comercial pergunta no titulo e|D-351]]…[[D-357 - A ordem da tabela de clientes viaja dentro dos filtros|D-357]]; no ramo, junto na subida de 24/11):**
+**Andamento (SESSAO-54 · Comercial: janelas da plataforma e a ordem da tabela de clientes no banco, 18/11 — [[D-351 - A janela de confirmacao do Comercial pergunta no titulo e|D-351]]…[[D-357 - A ordem da tabela de clientes viaja dentro dos filtros|D-357]]; no ramo, junto na subida de 24/11 ↪️ 25/11: ✅ no ar, banco e site, pela subida de 25/11):**
 - **Requisições:** nenhuma a mais; trocar a ordem da tabela = 1 requisição (a página nova).
 - ✅ **Pago (lei de requisição):** a tabela de clientes ordenava só a página que estava na tela — agora a ordem vai para o banco (vale depois de banco e site subirem).
 - **Pacote:** JS inicial 233,0 KB; a lista de disparo 16,08 KB e o Painel de Recompra 16,61 KB.
 - **Dívidas novas:** a 39 e a 40 (abaixo; as duas já existiam, foram medidas agora).
 
-**Andamento (SESSAO-55 · telas que abrem com uma leitura, 18/11 — [[D-358 - A porta de abertura junta as leituras de sempre e nao as|D-358]]…[[D-367 - Ficam de fora de proposito indice novo paginacao dos cadastros|D-367]]; no ramo, junto na subida de 24/11):**
+**Andamento (SESSAO-55 · telas que abrem com uma leitura, 18/11 — [[D-358 - A porta de abertura junta as leituras de sempre e nao as|D-358]]…[[D-367 - Ficam de fora de proposito indice novo paginacao dos cadastros|D-367]]; no ramo, junto na subida de 24/11 ↪️ 25/11: ✅ no ar, banco e site, pela subida de 25/11):**
 - ✅ **Dívida 20 — paga:** a bolinha, o Meu Painel e os Meus afazeres leem a mesma resposta (uma porta).
 - ↪️ **Dívida 18 — paga para:** Pessoas, Qualidade, Meu desempenho, Equipe, API e integrações, Caminhões, Automações; Tempo por setor (já estava); Controle de tempo (o "Desligar o tempo" foi de 3 para 1). **Segue aberta para:** a configuração do Estoque, Programação e Pedidos em aguardo, e o Comercial (~10 leituras, os gráficos).
 - **1 requisição por tela** provada por teste de tela (14 provas); nenhum relógio buscando dado; RLS com `(select auth.uid())`; pacote 232,9 KB.

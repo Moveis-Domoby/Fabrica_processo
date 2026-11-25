@@ -2,7 +2,7 @@
 titulo: "Banco — Chat Tarefas Automacoes e Configuracoes"
 tipo: esquema-dominio
 dominio: config
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [supabase, banco-de-dados, esquema, dominio/config]
 ---
 
@@ -47,7 +47,7 @@ tags: [supabase, banco-de-dados, esquema, dominio/config]
   - Ensaio ×100 no banco real (5 mil sugestões, desfeito): quadro **23 ms**, "Ver mais" **3 ms**, ficha **13 ms**; os dois cursores por **Index Scan** dos índices parciais. ⚠️ O ensaio gastou a numeração ([[Memoria - Processo de Sessao Cofre e Dono#E-230|E-230]]): as sugestões do teste de tela nasceram #5001–#5003 — apagadas em 05/11 com o OK do dono, e as duas tabelas reiniciadas (`restart with 1`).
   - Bateria: bloco "SESSAO-46" (reaplica a migration com dado dentro — o bloco 78 dá SELECT em toda tabela de `public`, e a reaplicação prova que ela fecha de novo).
 
-- **SESSAO-55 — telas que abrem com uma leitura ([[D-358 - A porta de abertura junta as leituras de sempre e nao as|D-358]]…[[D-367 - Ficam de fora de proposito indice novo paginacao dos cadastros|D-367]]; ⏳ NÃO aplicada — junto na subida de 24/11, espera o OK do dono — banco antes do site, no mesmo gesto):** 9 funções novas em `public` (todas `returns jsonb`, `security invoker`, `stable`, execução só para `authenticated`); **nenhuma tabela, coluna, índice, política ou gatilho; nenhuma função viva recriada**.
+- **SESSAO-55 — telas que abrem com uma leitura ([[D-358 - A porta de abertura junta as leituras de sempre e nao as|D-358]]…[[D-367 - Ficam de fora de proposito indice novo paginacao dos cadastros|D-367]]; ⏳ NÃO aplicada — junto na subida de 24/11, espera o OK do dono — banco antes do site, no mesmo gesto ↪️ **25/11: ✅ NO AR** — ligada pela fila em 25/11 (o bloco de 25/11 no fim desta nota)):** 9 funções novas em `public` (todas `returns jsonb`, `security invoker`, `stable`, execução só para `authenticated`); **nenhuma tabela, coluna, índice, política ou gatilho; nenhuma função viva recriada**.
   - **`20261118130000_plt_meu_trabalho_numa_leitura.sql`:** `plt_fn_meu_trabalho(text, boolean)` (a bolinha, o Meu Painel e os Meus afazeres).
   - **`20261118130100_plt_dashboards_numa_leitura.sql`:** `plt_fn_dash_pessoas_abertura(numeric, bigint, boolean, bigint, boolean, boolean, integer)` · `plt_fn_dash_qualidade_abertura(numeric, bigint, boolean)` · `plt_fn_meu_desempenho_abertura(numeric, integer)`.
   - **`20261118130200_plt_configuracoes_numa_leitura.sql`:** `plt_fn_equipe_abertura()` · `plt_fn_api_abertura()` · `plt_fn_caminhoes_abertura(boolean, boolean)` · `plt_fn_automacoes_abertura(bigint, integer, integer, boolean, boolean, boolean)` · `plt_fn_tempo_desligar_abertura()`.

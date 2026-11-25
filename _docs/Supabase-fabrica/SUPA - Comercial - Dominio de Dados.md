@@ -1,7 +1,7 @@
 ---
 titulo: SUPA — Comercial — Domínio de Dados
 tipo: nota
-atualizado: 2026-09-22
+atualizado: 2026-11-25
 tags: [comercial, supabase, banco-de-dados, rls, rpc]
 ---
 
@@ -194,7 +194,7 @@ Todas em `plpgsql`. Corpo **copiado do banco vivo em 15/09 sem alterar uma linha
 | `fn_dashboard_top_items_overall` | `(p_start, p_end)` | `item_name`, `quantidade` — top itens e dropdown de produtos (sem LIMIT desde DT-G2) |
 | `fn_dashboard_transitions_summary` | `(p_start, p_end)` | `purchase_number`, `avg_days`, `client_count` — agregado sem PII; janelas sobre o histórico inteiro, filtro de período depois (proposital: ordinal real da vida do cliente) |
 | `fn_dashboard_transition_clients` | `(p_purchase_number int, p_start, p_end, p_limit int = 20, p_offset int = 0)` | drill-down: `client_id`, `days_since_last`, `prev_date`, `curr_date` |
-| `fn_dashboard_transitions` | `(p_start, p_end)` | 🪦 **LEGADA** — uma linha por transição, com telefone. A loja já recomendava dropar; veio na cópia "sem alteração". Na fábrica o risco de PII está mitigado pelo gate de módulo (§5), mas segue candidata a drop — ↪️ **18/11 (SESSAO-54): a remoção está pronta em arquivo** (`20261118120000_plt_comercial_remove_funcao_antiga.sql`); **ainda existe no banco** até o dono autorizar a aplicação. |
+| `fn_dashboard_transitions` | `(p_start, p_end)` | 🪦 **LEGADA** — uma linha por transição, com telefone. A loja já recomendava dropar; veio na cópia "sem alteração". Na fábrica o risco de PII está mitigado pelo gate de módulo (§5), mas segue candidata a drop — ↪️ **18/11 (SESSAO-54): a remoção está pronta em arquivo** (`20261118120000_plt_comercial_remove_funcao_antiga.sql`); **ainda existe no banco** até o dono autorizar a aplicação. ↪️ **25/11: ✅ REMOVIDA do banco** pela fila, na subida de 25/11 (o dono respondeu "Pode apagar junto" em 25/11 03:30); conferido no banco vivo em 25/11 05:10 que ela não existe mais — a do resumo, acima, segue. |
 | `fn_vendas_disparo_por_telefone` | ⚠️ assinatura exata **não documentada nas fontes** (criada na Fase E, 2026-09-08, para a atribuição de venda filtrar por telefone no SQL; era `language sql`, virou plpgsql na S20 com o mesmo SELECT) | vendas de `vendas_marketing` por telefone — consumida por `verificar-vendas-disparo` |
 
 **+2 novas na S20** (substituem as leituras diretas que o front do recompra fazia): `fn_clientes_consolidados(p_min_pedidos, p_ordem, p_limit)` e `fn_vendas_cliente(p_telefones, p_nome_exato, p_nome_parcial)` — **sem critério devolvem vazio**.
