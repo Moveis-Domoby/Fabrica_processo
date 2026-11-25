@@ -56,7 +56,7 @@ Nenhuma decisão de produto nova. As provisórias das entregas que subiram conti
 - **Banco:** nada a ligar. Nenhuma atualização do banco nova; nenhuma grava, muda ou apaga dado.
 - **Funções do servidor:** nada a publicar.
 - **Site:** não remonta — só `_docs/` mudou, e o pulo da documentação está ligado.
-- **Ordem de ligar:** juntar este ramo na main e enviar. É um passo só.
+- **Ordem de ligar:** juntar este ramo na main e enviar. É um passo só. — ✅ ligado pela fila em 25/11/2026, por volta das 05:45 (antes: a main no mesmo ponto de onde o ramo partiu; lint, montagem, 864 testes e o verificador com zero erro, rodados de novo pelo publicador).
   - *Antes:* a main no mesmo ponto de onde este ramo partiu (`f4b872e`) ou à frente só com cofre; se outra entrega mexeu nas mesmas notas, juntar ficando com o texto dos dois.
   - *Depois:* `node scripts/cofre/verificar.mjs` na main com zero erro; a publicação do site **não** dispara (o envio é só de documentação).
 - **O arquivo do esquema** (`_docs/Supabase-fabrica/supabase-fabrica-schema.sql`) é lido pela bateria do banco: a seção nova é **só comentário**, e a bateria foi rodada com ele (seção 7).
