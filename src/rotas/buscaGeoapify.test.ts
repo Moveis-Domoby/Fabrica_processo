@@ -184,23 +184,22 @@ describe('consultasGeoapify — o que se pergunta à Geoapify', () => {
 })
 
 // ---------------------------------------------------------------------------
-// O fluxo: Geoapify → (recusou) Photon → (os dois) "tentar depois"
+// O fluxo: a Geoapify é o único buscador (↪️ 25/11: o Photon, de reserva, e o
+// resto do Nominatim saíram do código — "remover o lixo"); recusou = "tentar depois"
 // ---------------------------------------------------------------------------
 
-type Rede = Partial<Record<'geoapify' | 'photon' | 'cep', (url: URL) => RespostaDaRede>>
+type Rede = Partial<Record<'geoapify', (url: URL) => RespostaDaRede>>
 
 function ambiente(rede: Rede, chave: string | null = 'CHAVE-DE-TESTE') {
   const chamadas: URL[] = []
   const amb: Ambiente = {
     buscar: async (url) => {
       chamadas.push(url)
-      const quem = url.host.includes('geoapify') ? 'geoapify' : url.host.includes('photon') ? 'photon' : url.host.includes('cep') ? 'cep' : null
-      const responde = quem ? rede[quem] : undefined
+      const responde = url.host.includes('geoapify') ? rede.geoapify : undefined
       return responde ? responde(url) : { erro: 'HTTP 404' }
     },
     esperar: async () => undefined,
     chaveGeoapify: chave,
-    userAgent: 'teste',
     recusas: [],
     geoapifyRecusou: false,
   }
@@ -209,17 +208,9 @@ function ambiente(rede: Rede, chave: string | null = 'CHAVE-DE-TESTE') {
 }
 
 const ENDERECO = 'Rua das Acácias Amarelas 120, Lagoa Nova, Natal, RN, 59075-120, Brasil'
-const photonCasa = {
-  features: [
-    {
-      geometry: { coordinates: [-35.2105, -5.8201] },
-      properties: { type: 'house', street: 'Rua das Acácias Amarelas', housenumber: '120', district: 'Lagoa Nova', city: 'Natal', state: 'Rio Grande do Norte', countrycode: 'BR' },
-    },
-  ],
-}
 
-describe('procurarEndereco — a ordem dos buscadores', () => {
-  it('a Geoapify acha: uma consulta só, com a chave, o filtro do país e sem o Photon', async () => {
+describe('procurarEndereco — a Geoapify, e só ela', () => {
+  it('a Geoapify acha: uma consulta só, com a chave e o filtro do país', async () => {
     const { amb, chamadas, para } = ambiente({ geoapify: () => ({ corpo: { results: [casa] } }) })
     expect(await procurarEndereco(ENDERECO, amb)).toEqual({ tipo: 'ok', lat: -5.8201, lon: -35.2105, fonte: 'geoapify' })
     expect(chamadas).toHaveLength(1)
@@ -233,40 +224,40 @@ describe('procurarEndereco — a ordem dos buscadores', () => {
     expect(amb.recusas).toEqual([])
   })
 
-  it('o Nominatim não é mais chamado, em caminho nenhum', async () => {
-    const { amb, chamadas } = ambiente({ geoapify: () => ({ erro: 'HTTP 500' }), photon: () => ({ erro: 'HTTP 403' }) })
-    await procurarEndereco(ENDERECO, amb)
-    expect(chamadas.some((u) => u.host.includes('nominatim'))).toBe(false)
+  it('nenhum outro serviço é chamado, em caminho nenhum (nem com a Geoapify fora, nem nos degraus)', async () => {
+    const fora = ambiente({ geoapify: () => ({ erro: 'HTTP 500' }) })
+    await procurarEndereco(ENDERECO, fora.amb)
+    const nada = ambiente({ geoapify: () => ({ corpo: { results: [] } }) })
+    await procurarEndereco(ENDERECO, nada.amb)
+    for (const u of [...fora.chamadas, ...nada.chamadas]) expect(u.host).toBe('api.geoapify.com')
   })
 
-  it('a Geoapify recusa (chave errada): o Photon tenta — e os endereços seguintes nem gastam outra consulta nela', async () => {
-    const { amb, para } = ambiente({ geoapify: () => ({ erro: 'HTTP 401' }), photon: () => ({ corpo: photonCasa }) })
-    expect(await procurarEndereco(ENDERECO, amb)).toMatchObject({ tipo: 'ok', fonte: 'photon' })
+  it('a Geoapify recusa (chave errada): "tentar depois" — e os endereços seguintes nem gastam outra consulta nela', async () => {
+    const { amb, para } = ambiente({ geoapify: () => ({ erro: 'HTTP 401' }) })
+    expect(await procurarEndereco(ENDERECO, amb)).toEqual({ tipo: 'erro', motivo: 'Geoapify HTTP 401' })
     expect(para('geoapify')).toHaveLength(1)
     expect(amb.geoapifyRecusou).toBe(true)
-    expect(amb.recusas).toContain('Geoapify HTTP 401')
-    expect(await procurarEndereco(ENDERECO, amb)).toMatchObject({ tipo: 'ok', fonte: 'photon' })
+    expect(await procurarEndereco(ENDERECO, amb)).toMatchObject({ tipo: 'erro' })
     expect(para('geoapify')).toHaveLength(1)
   })
 
-  it('sem a chave no servidor: vale a reserva', async () => {
-    const { amb, para } = ambiente({ photon: () => ({ corpo: photonCasa }) }, null)
-    expect(await procurarEndereco(ENDERECO, amb)).toMatchObject({ tipo: 'ok', fonte: 'photon' })
-    expect(para('geoapify')).toHaveLength(0)
+  it('sem a chave no servidor: "tentar depois", sem chamar ninguém', async () => {
+    const { amb, chamadas } = ambiente({}, null)
+    expect(await procurarEndereco(ENDERECO, amb)).toEqual({ tipo: 'erro', motivo: 'Geoapify sem chave' })
+    expect(chamadas).toHaveLength(0)
   })
 
-  it('os dois recusam: "tentar depois" (nada de "não achei") — e a chave não aparece em mensagem nenhuma', async () => {
-    const { amb } = ambiente({ geoapify: () => ({ erro: 'HTTP 429' }), photon: () => ({ erro: 'HTTP 403' }) })
+  it('recusa por limite: "tentar depois" (nada de "não achei") — e a chave não aparece em mensagem nenhuma', async () => {
+    const { amb } = ambiente({ geoapify: () => ({ erro: 'HTTP 429' }) })
     const r = await procurarEndereco(ENDERECO, amb)
-    expect(r).toEqual({ tipo: 'erro', motivo: 'Geoapify HTTP 429, Photon HTTP 403' })
+    expect(r).toEqual({ tipo: 'erro', motivo: 'Geoapify HTTP 429' })
     expect(JSON.stringify([r, amb.recusas])).not.toContain('CHAVE-DE-TESTE')
     expect(JSON.stringify([r, amb.recusas])).not.toContain('Acácias')
   })
 
-  it('a Geoapify responde "nada": é "não achei" de verdade — o Photon não é chamado (recusa ≠ vazio)', async () => {
-    const { amb, para } = ambiente({ geoapify: () => ({ corpo: { results: [] } }) })
+  it('a Geoapify responde "nada": é "não achei" de verdade (recusa ≠ vazio)', async () => {
+    const { amb } = ambiente({ geoapify: () => ({ corpo: { results: [] } }) })
     expect(await procurarEndereco('Rua Que Não Existe 9, Natal, RN, Brasil', amb)).toMatchObject({ tipo: 'vazio' })
-    expect(para('photon')).toHaveLength(0)
   })
 
   it('a rua não existe no mapa: o degrau da cidade (ponto aproximado), também pela Geoapify', async () => {
@@ -279,7 +270,7 @@ describe('procurarEndereco — a ordem dos buscadores', () => {
       lon: -35.211,
       fonte: 'aprox_cidade',
     })
-    expect(para('photon')).toHaveLength(0)
+    expect(para('geoapify').length).toBeGreaterThan(0)
   })
 
   it('o endereço digitado à mão que só acha o bairro — ↪️ SESSAO-57: o bairro é só onde abrir o mapa, não "achou"', async () => {

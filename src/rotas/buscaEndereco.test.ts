@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  candidatosNominatim,
-  candidatosPhoton,
-  consultaBairro,
-  consultaCidade,
-  consultasTexto,
+  consultaGeoapifyBairro,
+  consultaGeoapifyCidade,
+  consultasGeoapify,
   escolher,
   escolherLugar,
   escolherPerto,
@@ -13,12 +11,41 @@ import {
   pontoDoCep,
   semelhancaNome,
 } from '../../supabase/functions/geocodificar/busca'
+import type { Candidato, NivelDoLugar } from '../../supabase/functions/geocodificar/busca'
 
 /**
  * SESSAO-45: a regra da busca de endereço (a Edge Function `geocodificar`).
- * Os candidatos abaixo são respostas REAIS do Photon/Nominatim de 04/11/2026,
- * só com os campos que a regra lê — os casos que o raio-x achou errados.
+ * Os candidatos abaixo são respostas REAIS do mapa aberto de 04/11/2026 (pelo
+ * buscador da época), só com os campos que a regra lê — os casos que o raio-x
+ * achou errados. ↪️ 25/11: o buscador da época saiu do código ("remover o
+ * lixo"); a leitura dos exemplos mora aqui (`doMapa`) e a regra testada é a
+ * mesma que a Geoapify alimenta.
  */
+type Props = Record<string, string | undefined>
+const nivel = (t?: string): NivelDoLugar | null =>
+  t === 'district' || t === 'locality' ? 'bairro' : t === 'city' || t === 'county' ? 'cidade' : null
+function doMapa(corpo: { features: Record<string, unknown>[] }): Candidato[] {
+  return corpo.features.map((f) => {
+    const [lon, lat] = (f.geometry as { coordinates: number[] }).coordinates
+    const p = (f.properties ?? {}) as Props
+    const tipo = p.type === 'house' ? 'house' : p.type === 'street' ? 'street' : 'outro'
+    const lugar = nivel(p.type)
+    return {
+      lat,
+      lon,
+      tipo,
+      rua: p.street ?? (tipo === 'street' ? (p.name ?? null) : null),
+      nome: p.name ?? null,
+      numero: p.housenumber ?? null,
+      lugares: [p.district, p.locality].filter((x): x is string => !!x),
+      cidades: [p.city].filter((x): x is string => !!x),
+      estado: p.state ?? null,
+      cep: p.postcode ?? null,
+      fonte: 'geoapify' as const,
+      ...(lugar ? { lugar } : {}),
+    }
+  })
+}
 const rua = (
   lat: number,
   lon: number,
@@ -65,8 +92,9 @@ describe('partirEndereco — o endereço do banco lido de trás para a frente', 
 
   it('as consultas usam a rua por extenso e a cidade', () => {
     const e = partirEndereco('Av Machado de Assis 400, bosque das colinas, São José de Mipibu, RN, 59162-000, Brasil')
-    expect(consultasTexto(e)[0]).toBe('Avenida Machado de Assis 400, São José de Mipibu')
-    expect(consultasTexto(e)).toContain('Avenida Machado de Assis, bosque das colinas, São José de Mipibu')
+    const [estruturada, texto] = consultasGeoapify(e)
+    expect(estruturada).toMatchObject({ street: 'Avenida Machado de Assis', housenumber: '400', city: 'São José de Mipibu' })
+    expect(texto.text).toBe('Avenida Machado de Assis 400, bosque das colinas, São José de Mipibu, RN')
   })
 })
 
@@ -104,7 +132,7 @@ describe('semelhancaNome e lugarBate', () => {
 describe('escolher — o ponto certo entre as ruas de mesmo nome', () => {
   it('São José de Mipibu: o mapa chama o lugar de "Taborda", o bairro prova (antes: não encontrado)', () => {
     const e = partirEndereco('Av Machado de Assis 400, bosque das colinas, São José de Mipibu, RN, 59162-000, Brasil')
-    const c = candidatosPhoton({
+    const c = doMapa({
       features: [
         rua(-5.9749, -35.2809, 'Avenida Machado de Assis', { locality: 'Residencial Bosque das Colinas', city: 'Taborda', postcode: '59144-206' }),
       ],
@@ -114,7 +142,7 @@ describe('escolher — o ponto certo entre as ruas de mesmo nome', () => {
 
   it('Rua São João em Lagoa Seca: o bairro e o CEP escolhem a certa entre 7 (antes: a de Pajuçara, 12 km)', () => {
     const e = partirEndereco('Rua São João 1387, Lagoa Seca, Natal, RN, 59.022-390, Brasil')
-    const c = candidatosPhoton({
+    const c = doMapa({
       features: [
         rua(-5.7412, -35.2391, 'Rua São João', { district: 'Pajuçara', city: 'Natal', postcode: '59123-500' }),
         rua(-5.855, -35.2485, 'Rua São João', { district: 'Planalto', city: 'Natal', postcode: '59068-170' }),
@@ -128,7 +156,7 @@ describe('escolher — o ponto certo entre as ruas de mesmo nome', () => {
 
   it('Rua Ceilândia no Planalto: a do bairro certo, mesmo com o nome do mapa com erro (antes: Pajuçara, 11 km)', () => {
     const e = partirEndereco('Rua Ceilândia 1050, Planalto, Natal, RN, 59073-074, Brasil')
-    const c = candidatosPhoton({
+    const c = doMapa({
       features: [
         rua(-5.7514, -35.2351, 'Rua Ceilândia', { district: 'Pajuçara', city: 'Natal', postcode: '59122-200' }),
         rua(-5.8504, -35.2641, 'Rua Ceilanadia', { district: 'Planalto', city: 'Natal', postcode: '59073-130' }),
@@ -139,7 +167,7 @@ describe('escolher — o ponto certo entre as ruas de mesmo nome', () => {
 
   it('só a cidade prova o lugar e há ruas de mesmo nome longe uma da outra = não achei (a pessoa marca)', () => {
     const e = partirEndereco('Rua São João 10, Bairro Que o Mapa Não Tem, Natal, RN, 59000-000, Brasil')
-    const c = candidatosPhoton({
+    const c = doMapa({
       features: [
         rua(-5.7412, -35.2391, 'Rua São João', { district: 'Pajuçara', city: 'Natal' }),
         rua(-5.8078, -35.2098, 'Rua São João', { district: 'Lagoa Seca', city: 'Natal' }),
@@ -150,19 +178,19 @@ describe('escolher — o ponto certo entre as ruas de mesmo nome', () => {
 
   it('a mesma rua em trechos perto um do outro (só a cidade bate) é aceita', () => {
     const e = partirEndereco('Rua Desembargador Lins Bahia 173, Rocas, Natal, RN, 59.010-190, Brasil')
-    const c = candidatosNominatim([
-      { lat: '-5.7790987', lon: '-35.1980256', category: 'highway', name: 'Rua Desembargador Lins Bahia',
-        address: { road: 'Rua Desembargador Lins Bahia', suburb: 'Praia do Meio', city: 'Natal', state: 'Rio Grande do Norte', postcode: '59012-310' } },
-      { lat: '-5.7800460', lon: '-35.1994011', category: 'highway', name: 'Rua Desembargador Lins Bahia',
-        address: { road: 'Rua Desembargador Lins Bahia', suburb: 'Rocas', city: 'Natal', state: 'Rio Grande do Norte', postcode: '59012-310' } },
-    ])
+    const c = doMapa({
+      features: [
+        rua(-5.7790987, -35.1980256, 'Rua Desembargador Lins Bahia', { district: 'Praia do Meio', city: 'Natal', postcode: '59012-310' }),
+        rua(-5.780046, -35.1994011, 'Rua Desembargador Lins Bahia', { district: 'Rocas', city: 'Natal', postcode: '59012-310' }),
+      ],
+    })
     // o trecho do bairro Rocas ganha
     expect(escolher(e, c).ponto).toEqual({ lat: -5.780046, lon: -35.1994011 })
   })
 
   it('rua de mesmo nome noutra cidade não serve', () => {
     const e = partirEndereco('Avenida Abel Cabral 505, Nova Parnamirim, Parnamirim, RN, 59151-250, Brasil')
-    const c = candidatosPhoton({
+    const c = doMapa({
       features: [rua(-5.79, -35.21, 'Avenida Abel Cabral', { district: 'Lagoa Nova', city: 'Natal', postcode: '59060-000' })],
     })
     expect(escolher(e, c)).toEqual({ ponto: null, motivo: 'fora_do_lugar' })
@@ -170,7 +198,7 @@ describe('escolher — o ponto certo entre as ruas de mesmo nome', () => {
 
   it('a casa com o número certo ganha da rua', () => {
     const e = partirEndereco('Rua Aroeira 375, Nova Parnamirim, Parnamirim, RN, 59.152-100, Brasil')
-    const c = candidatosPhoton({
+    const c = doMapa({
       features: [
         rua(-5.8896, -35.1931, 'Rua Aroeira', { district: 'Nova Parnamirim', city: 'Parnamirim' }),
         {
@@ -184,7 +212,7 @@ describe('escolher — o ponto certo entre as ruas de mesmo nome', () => {
 
   it('o digitado à mão leva o 1º do buscador (a pessoa confere no pino)', () => {
     const e = partirEndereco('Casa do bizotê')
-    const c = candidatosPhoton({ features: [{ geometry: { coordinates: [-35.22, -5.81] }, properties: { type: 'house', name: 'Casa do Bizotê' } }] })
+    const c = doMapa({ features: [{ geometry: { coordinates: [-35.22, -5.81] }, properties: { type: 'house', name: 'Casa do Bizotê' } }] })
     expect(escolher(e, c).ponto).toEqual({ lat: -5.81, lon: -35.22 })
   })
 })
@@ -194,7 +222,7 @@ describe('escolher — o ponto certo entre as ruas de mesmo nome', () => {
  * encontrado"): quando a rua não se acha, a busca desce em degraus — o ponto do
  * CEP, o centro do bairro, o centro da cidade — e o ponto do CEP/bairro acha a
  * rua de mesmo nome que fica perto dele. Respostas reais do serviço de CEP e do
- * Photon (camadas de lugar) de 05/11/2026, só com os campos que a regra lê.
+ * mapa aberto (camadas de lugar) de 05/11/2026, só com os campos que a regra lê.
  * ↪️ Correção do dono (05/11, manhã): o CEP e o bairro são só ÂNCORA (o ponto
  * final é de rua — ou o da cidade, com aviso para ajustar o pino).
  */
@@ -205,7 +233,7 @@ const lugar = (lat: number, lon: number, type: string, name: string, extra: Reco
 
 describe('os degraus — nunca mais "endereço não encontrado"', () => {
   const ambiguo = partirEndereco('Rua São João 10, Bairro Que o Mapa Não Tem, Natal, RN, 59.022-390, Brasil')
-  const duasSaoJoao = candidatosPhoton({
+  const duasSaoJoao = doMapa({
     features: [
       rua(-5.7412, -35.2391, 'Rua São João', { district: 'Pajuçara', city: 'Natal' }),
       rua(-5.8078, -35.2098, 'Rua São João', { district: 'Lagoa Seca', city: 'Natal' }),
@@ -219,7 +247,7 @@ describe('os degraus — nunca mais "endereço não encontrado"', () => {
       city: 'Natal', state: 'RN', lat: '-5.8085', lng: '-35.2105',
     })
     expect(cep).toEqual({ lat: -5.8085, lon: -35.2105, geral: false, ruaBate: true })
-    expect(escolherPerto(ambiguo, duasSaoJoao, { ...cep!, degrau: 'cep' })).toEqual({ lat: -5.8078, lon: -35.2098, fonte: 'photon' })
+    expect(escolherPerto(ambiguo, duasSaoJoao, { ...cep!, degrau: 'cep' })).toEqual({ lat: -5.8078, lon: -35.2098, fonte: 'geoapify' })
   })
 
   it('nenhuma rua de mesmo nome perto da âncora: fica o ponto da âncora (aproximado)', () => {
@@ -248,8 +276,8 @@ describe('os degraus — nunca mais "endereço não encontrado"', () => {
 
   it('o centro do bairro: o nome igual, dentro da cidade do pedido (o condomínio "Atol das Rocas" de Lagoa Nova não engana)', () => {
     const e = partirEndereco('Rua Desembargador Lins Bahia 173, Rocas, Natal, RN, 59.010-190, Brasil')
-    expect(consultaBairro(e)).toBe('Rocas, Natal')
-    const c = candidatosPhoton({
+    expect(consultaGeoapifyBairro(e)).toMatchObject({ text: 'Rocas, Natal, Rio Grande Do Norte' })
+    const c = doMapa({
       features: [
         lugar(-5.8247, -35.2106, 'locality', 'Condomínio Residencial Atol das Rocas', { city: 'Natal', district: 'Lagoa Nova' }),
         lugar(-5.7737, -35.1998, 'district', 'Rocas', { city: 'Natal' }),
@@ -262,27 +290,27 @@ describe('os degraus — nunca mais "endereço não encontrado"', () => {
 
   it('o bairro que o mapa chama por um nome maior ("Pium" → "Pium de Nísia") ainda serve', () => {
     const e = partirEndereco('Estrada RN 313 28, PIUM, Nísia Floresta, RN, 59.164-000, Brasil')
-    const c = candidatosPhoton({
+    const c = doMapa({
       features: [lugar(-5.9685, -35.1959, 'district', 'Pium de Nísia', { city: 'Nísia Floresta' })],
     })
     expect(escolherLugar(e, c, 'bairro')).toEqual({ lat: -5.9685, lon: -35.1959 })
     // bairro de mesmo nome noutra cidade não serve
-    const outra = candidatosPhoton({ features: [lugar(-5.8, -35.2, 'district', 'Pium', { city: 'Natal' })] })
+    const outra = doMapa({ features: [lugar(-5.8, -35.2, 'district', 'Pium', { city: 'Natal' })] })
     expect(escolherLugar(e, outra, 'bairro')).toBeNull()
   })
 
   it('o centro da cidade: só com o nome igual (São José de Mipibu não é São José do Campestre)', () => {
     const e = partirEndereco('Av Machado de Assis 400, bosque das colinas, São José de Mipibu, RN, 59162-000, Brasil')
-    expect(consultaCidade(e)).toBe('São José de Mipibu, Rio Grande Do Norte')
-    expect(escolherLugar(e, candidatosPhoton({ features: [lugar(-6.0747, -35.237, 'city', 'São José de Mipibu')] }), 'cidade'))
+    expect(consultaGeoapifyCidade(e)).toMatchObject({ city: 'São José de Mipibu', state: 'Rio Grande Do Norte' })
+    expect(escolherLugar(e, doMapa({ features: [lugar(-6.0747, -35.237, 'city', 'São José de Mipibu')] }), 'cidade'))
       .toEqual({ lat: -6.0747, lon: -35.237 })
-    expect(escolherLugar(e, candidatosPhoton({ features: [lugar(-6.2, -35.7, 'city', 'São José do Campestre')] }), 'cidade'))
+    expect(escolherLugar(e, doMapa({ features: [lugar(-6.2, -35.7, 'city', 'São José do Campestre')] }), 'cidade'))
       .toBeNull()
   })
 
   it('o digitado à mão não desce degraus (a pessoa marca o pino na janela)', () => {
     const e = partirEndereco('Casa do bizotê')
-    expect(consultaBairro(e)).toBeNull()
-    expect(consultaCidade(e)).toBeNull()
+    expect(consultaGeoapifyBairro(e)).toBeNull()
+    expect(consultaGeoapifyCidade(e)).toBeNull()
   })
 })

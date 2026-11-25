@@ -4,30 +4,27 @@
 // A ordem dos buscadores e dos degraus, sem Deno e com a rede INJETADA — o
 // Vitest prova a ordem (src/rotas/buscaGeoapify.test.ts) sem chamar ninguém:
 //
-//   1. a GEOAPIFY (chave própria da Domoby — escolha do dono, 23/11/2026);
-//   2. se a Geoapify recusar ou falhar (sem chave, 401/403/429/5xx, tempo
-//      esgotado), o PHOTON como reserva (ele recusa o servidor desde 19/11,
-//      mas pode voltar — manter custa pouco);
-//   3. o Nominatim SAIU (recusa desde 03/10 e só gastava 1,1 s por endereço).
+//   1. a GEOAPIFY (chave própria da Domoby — escolha do dono, 23/11/2026) é o
+//      ÚNICO buscador. ↪️ 25/11 (pedido do dono: "remover o lixo"): saíram do
+//      código o Photon (a reserva — recusava o servidor desde 19/11), o
+//      Nominatim (recusava desde 03/10) e a consulta do CEP pelo SERVIDOR
+//      (o serviço de CEP responde "limite de uso" a todas as chamadas daqui).
+//   2. o CEP chega pronto do NAVEGADOR (ajuste de 24/11) — sem ele, o degrau
+//      do CEP fica de fora.
 //
-// Os degraus continuam (CEP → bairro como âncora → cidade), agora pela
-// Geoapify, com o Photon de reserva. Buscador que RECUSA não é "não achei":
-// nada se grava e a tela avisa (`tipo: 'erro'`).
+// Os degraus continuam (CEP → bairro como âncora → cidade), pela Geoapify.
+// Buscador que RECUSA não é "não achei": nada se grava e a tela avisa
+// (`tipo: 'erro'`).
 //
 // ⚠️ A chave da Geoapify vai na URL — por isso NENHUMA mensagem daqui leva a
 // URL: só o nome do buscador e o código da resposta. O endereço do cliente
 // também nunca vai para o registro (dado pessoal).
 // ============================================================================
 import {
-  caixaDoEstado,
   candidatosGeoapify,
-  candidatosPhoton,
-  consultaBairro,
-  consultaCidade,
   consultaGeoapifyBairro,
   consultaGeoapifyCidade,
   consultasGeoapify,
-  consultasTexto,
   escolher,
   escolherLugar,
   escolherPerto,
@@ -45,12 +42,9 @@ import type {
 } from './busca.ts'
 
 export const GEOAPIFY = 'https://api.geoapify.com/v1/geocode/search'
-export const PHOTON = 'https://photon.komoot.io/api/'
-/** O serviço de CEP gratuito (sem chave) que devolve o ponto do CEP. */
-export const SERVICO_CEP = 'https://cep.awesomeapi.com.br/json/'
 
 /** De onde veio o ponto: a rua (pelo buscador ou pelo CEP da própria rua) ou a cidade (aproximado, com aviso). */
-export type Fonte = 'geoapify' | 'photon' | 'nominatim' | 'cep' | 'aprox_cidade'
+export type Fonte = 'geoapify' | 'cep' | 'aprox_cidade'
 
 export type Consulta =
   | { tipo: 'ok'; lat: number; lon: number; fonte: Fonte }
@@ -70,14 +64,13 @@ export interface Ambiente {
   buscar: (url: URL, cabecalhos: Record<string, string>) => Promise<RespostaDaRede>
   /** A espera entre duas consultas (a Geoapify aceita até 5 por segundo). */
   esperar: () => Promise<void>
-  /** A chave da Geoapify (segredo da função); sem ela, vale só a reserva. */
+  /** A chave da Geoapify (segredo da função); sem ela, a busca não responde (a tela avisa). */
   chaveGeoapify: string | null
-  userAgent: string
   /** As recusas/falhas desta chamada (para o registro da função — sem endereço). */
   recusas: string[]
   /**
    * A Geoapify recusou NESTA chamada (chave, cota): os endereços seguintes da
-   * mesma chamada vão direto à reserva, sem gastar outra consulta.
+   * mesma chamada nem tentam, sem gastar outra consulta.
    */
   geoapifyRecusou: boolean
 }
@@ -104,36 +97,9 @@ async function pelaGeoapify(amb: Ambiente, consulta: ConsultaGeoapify, modo: Mod
 }
 
 /**
- * Os candidatos do Photon para uma consulta de texto (casa e rua — ou, nos
- * degraus, as camadas de lugar: bairro e cidade; no RN, só dentro do RN).
- */
-async function peloPhoton(
-  amb: Ambiente,
-  consulta: string,
-  uf: string | null,
-  livre: boolean,
-  camadas: string[] = ['house', 'street'],
-): Promise<Lista> {
-  const url = new URL(PHOTON)
-  url.searchParams.set('q', consulta)
-  url.searchParams.set('limit', livre ? '5' : '10')
-  url.searchParams.set('lat', '-5.8')
-  url.searchParams.set('lon', '-35.2')
-  // o endereço digitado vem do galpão — a busca fica no RN; o do cadastro, no estado dele
-  const caixa = caixaDoEstado(livre ? 'RN' : uf)
-  if (caixa) url.searchParams.set('bbox', caixa)
-  if (!livre) {
-    for (const camada of camadas) url.searchParams.append('layer', camada)
-  }
-  const r = await amb.buscar(url, { 'User-Agent': amb.userAgent })
-  if ('erro' in r) return { erro: `Photon ${r.erro}` }
-  return { lista: candidatosPhoton(r.corpo) }
-}
-
-/**
  * Ajuste 24/11: a resposta do serviço de CEP que o NAVEGADOR consultou (o
  * serviço recusa este servidor por limite de uso) — vale só se for do MESMO CEP
- * do endereço; senão `undefined` (não veio, ou não serve) e o servidor pergunta.
+ * do endereço; senão `undefined` (não veio, ou não serve): sem degrau do CEP.
  */
 export function respostaDoNavegador(e: EnderecoPartido, cepDoNavegador: unknown): unknown {
   if (!e.cep || !cepDoNavegador || typeof cepDoNavegador !== 'object') return undefined
@@ -142,46 +108,19 @@ export function respostaDoNavegador(e: EnderecoPartido, cepDoNavegador: unknown)
   return cepDoNavegador
 }
 
-/** O ponto do CEP pelo serviço de CEP (recusa/limite = sem degrau do CEP, nunca erro). */
-async function peloCep(amb: Ambiente, e: EnderecoPartido, cepDoNavegador?: unknown): Promise<PontoDoCep | null> {
+/** O ponto do CEP que o navegador mandou (sem resposta do navegador = sem degrau do CEP, nunca erro). */
+function peloCep(e: EnderecoPartido, cepDoNavegador?: unknown): PontoDoCep | null {
   if (!e.cep) return null
   const doNavegador = respostaDoNavegador(e, cepDoNavegador)
-  if (doNavegador !== undefined) return pontoDoCep(e, doNavegador)
-  const r = await amb.buscar(new URL(SERVICO_CEP + e.cep), { 'User-Agent': amb.userAgent })
-  if ('erro' in r) {
-    if (r.erro !== 'HTTP 404') amb.recusas.push(`CEP ${r.erro}`)
-    return null
-  }
-  return pontoDoCep(e, r.corpo)
+  return doNavegador === undefined ? null : pontoDoCep(e, doNavegador)
 }
 
-/**
- * Um LUGAR (o bairro ou a cidade) pela Geoapify e, se ela recusar, pelo
- * Photon. Erro só quando NENHUM dos dois respondeu.
- */
-async function lugar(
-  amb: Ambiente,
-  pausa: () => Promise<void>,
-  e: EnderecoPartido,
-  geoapify: ConsultaGeoapify | null,
-  photon: { consulta: string | null; camadas: string[] },
-): Promise<Lista> {
-  let erro = 'sem consulta'
-  if (geoapify) {
-    await pausa()
-    const r = await pelaGeoapify(amb, geoapify, 'lugar')
-    if ('lista' in r) return r
-    amb.recusas.push(r.erro)
-    erro = r.erro
-  }
-  if (photon.consulta) {
-    await pausa()
-    const r = await peloPhoton(amb, photon.consulta, e.uf, false, photon.camadas)
-    if ('lista' in r) return r
-    amb.recusas.push(r.erro)
-    erro = r.erro
-  }
-  return { erro }
+/** Um LUGAR (o bairro ou a cidade) pela Geoapify; erro quando ela não respondeu. */
+async function lugar(amb: Ambiente, pausa: () => Promise<void>, consulta: ConsultaGeoapify): Promise<Lista> {
+  await pausa()
+  const r = await pelaGeoapify(amb, consulta, 'lugar')
+  if ('erro' in r) amb.recusas.push(r.erro)
+  return r
 }
 
 /**
@@ -199,7 +138,7 @@ async function degraus(
   candidatos: Candidato[],
   cepDoNavegador?: unknown,
 ): Promise<Consulta> {
-  const cep = await peloCep(amb, e, cepDoNavegador)
+  const cep = peloCep(e, cepDoNavegador)
   if (cep && !cep.geral) {
     const rua = escolherPerto(e, candidatos, { lat: cep.lat, lon: cep.lon, degrau: 'cep' })
     if (rua) return { tipo: 'ok', lat: rua.lat, lon: rua.lon, fonte: rua.fonte }
@@ -207,11 +146,9 @@ async function degraus(
   }
 
   // o bairro só ajuda se o buscador trouxe alguma rua com o nome do pedido
-  if (candidatos.length > 0 && consultaBairro(e)) {
-    const r = await lugar(amb, pausa, e, consultaGeoapifyBairro(e), {
-      consulta: consultaBairro(e),
-      camadas: ['district', 'locality'],
-    })
+  const doBairro = consultaGeoapifyBairro(e)
+  if (candidatos.length > 0 && doBairro) {
+    const r = await lugar(amb, pausa, doBairro)
     if ('erro' in r) return { tipo: 'erro', motivo: r.erro }
     const bairro = escolherLugar(e, r.lista, 'bairro')
     if (bairro) {
@@ -222,11 +159,9 @@ async function degraus(
 
   // o CEP geral da cidade (…000) já é o centro dela
   if (cep?.geral) return { tipo: 'ok', lat: cep.lat, lon: cep.lon, fonte: 'aprox_cidade' }
-  if (consultaCidade(e)) {
-    const r = await lugar(amb, pausa, e, consultaGeoapifyCidade(e), {
-      consulta: consultaCidade(e),
-      camadas: ['city'],
-    })
+  const daCidade = consultaGeoapifyCidade(e)
+  if (daCidade) {
+    const r = await lugar(amb, pausa, daCidade)
     if ('erro' in r) return { tipo: 'erro', motivo: r.erro }
     const cidade = escolherLugar(e, r.lista, 'cidade')
     if (cidade) return { tipo: 'ok', lat: cidade.lat, lon: cidade.lon, fonte: 'aprox_cidade' }
@@ -235,9 +170,9 @@ async function degraus(
 }
 
 /**
- * O ponto de UM endereço: os candidatos da Geoapify (ou, se ela recusar, do
- * Photon), a escolha de sempre (busca.ts) e, sem rua, os degraus. Nenhum
- * buscador respondeu = "tentar depois" (`erro`); resposta vazia = "não achei".
+ * O ponto de UM endereço: os candidatos da Geoapify, a escolha de sempre
+ * (busca.ts) e, sem rua, os degraus. A Geoapify não respondeu = "tentar
+ * depois" (`erro`); resposta vazia = "não achei".
  */
 export async function procurarEndereco(endereco: string, amb: Ambiente, cepDoNavegador?: unknown): Promise<Consulta> {
   const e = partirEndereco(endereco)
@@ -263,22 +198,6 @@ export async function procurarEndereco(endereco: string, amb: Ambiente, cepDoNav
     if (escolher(e, semRepetidos(candidatos)).motivo === 'ok') break
   }
 
-  // A reserva: só quando a Geoapify NÃO respondeu (recusa não é "não achei").
-  if (!respondeu) {
-    for (const [i, q] of consultasTexto(e).entries()) {
-      await pausa()
-      const r = await peloPhoton(amb, q, e.uf, e.livre)
-      if ('erro' in r) {
-        amb.recusas.push(r.erro)
-        break
-      }
-      respondeu = true
-      candidatos.push(...r.lista)
-      const parcial = escolher(e, semRepetidos(candidatos))
-      if (i === 0 && parcial.motivo === 'ok' && !e.livre && e.bairro === null) break
-    }
-  }
-
   if (!respondeu) return { tipo: 'erro', motivo: [...new Set(amb.recusas)].join(', ') || 'sem resposta' }
   const unicos = semRepetidos(candidatos)
   const escolha = escolher(e, unicos)
@@ -293,33 +212,6 @@ export async function procurarEndereco(endereco: string, amb: Ambiente, cepDoNav
   const ponto = escolha.ponto
   const fonte = candidatos.find((c) => c.lat === ponto.lat && c.lon === ponto.lon)?.fonte ?? 'geoapify'
   return { tipo: 'ok', lat: ponto.lat, lon: ponto.lon, fonte }
-}
-
-// ---------------------------------------------------------------------------
-// SESSAO-57 (frente 2): o ponto do CEP para CONFERIR o pino salvo à mão
-// ---------------------------------------------------------------------------
-
-/** Só os 8 dígitos de um CEP de RUA (o geral da cidade, …000, não diz onde fica a casa); senão null. */
-export function cepDeRua(cep: unknown): string | null {
-  if (typeof cep !== 'string') return null
-  const d = cep.replace(/\D/g, '')
-  return d.length === 8 && !d.endsWith('000') ? d : null
-}
-
-/**
- * O ponto do CEP pelo mesmo serviço de CEP dos degraus (`peloCep`) — a tela
- * compara com o pino antes de salvar ("o pino está a X km do CEP"). Serviço
- * fora, CEP que ele não conhece ou CEP geral = null: a tela não bloqueia nada.
- */
-export async function pontoParaConferir(
-  cep: unknown,
-  amb: Ambiente,
-): Promise<{ lat: number; lon: number } | null> {
-  const d = cepDeRua(cep)
-  if (!d) return null
-  const e: EnderecoPartido = { texto: '', livre: true, rua: null, numero: null, bairro: null, cidade: null, uf: null, cep: d }
-  const ponto = await peloCep(amb, e)
-  return ponto && !ponto.geral ? { lat: ponto.lat, lon: ponto.lon } : null
 }
 
 // ---------------------------------------------------------------------------

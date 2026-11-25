@@ -69,7 +69,7 @@ export interface Candidato {
   cidades: string[]
   estado: string | null
   cep: string | null
-  fonte: 'nominatim' | 'photon' | 'geoapify'
+  fonte: 'geoapify'
   /**
    * SESSAO-57: o resultado é um LUGAR (bairro ou cidade), não uma rua — só no
    * endereço digitado à mão, onde ele vira o ponto de onde abrir o mapa, nunca
@@ -346,18 +346,6 @@ function ruaPorExtenso(rua: string): string {
   })
 }
 
-/** As consultas ao buscador de texto (Photon), da mais certeira à mais solta. */
-export function consultasTexto(e: EnderecoPartido): string[] {
-  if (e.livre || !e.rua) return [e.texto]
-  const rua = ruaPorExtenso(e.rua)
-  const lista = [
-    [`${rua}${e.numero ? ` ${e.numero}` : ''}`, e.cidade].filter(Boolean).join(', '),
-    e.bairro ? [rua, e.bairro, e.cidade].filter(Boolean).join(', ') : null,
-    e.bairro && e.cidade ? [rua, e.bairro].join(', ') : null,
-  ]
-  return [...new Set(lista.filter((x): x is string => !!x))]
-}
-
 // ---------------------------------------------------------------------------
 // Escolher o candidato
 // ---------------------------------------------------------------------------
@@ -557,18 +545,6 @@ export function pontoDoCep(e: EnderecoPartido, corpo: unknown): PontoDoCep | nul
   return { lat, lon, geral, ruaBate }
 }
 
-/** A consulta do centro do bairro ("Rocas, Natal") — só ÂNCORA para achar a rua; null sem bairro ou sem cidade. */
-export function consultaBairro(e: EnderecoPartido): string | null {
-  if (e.livre || !e.bairro || !e.cidade) return null
-  return `${e.bairro}, ${e.cidade}`
-}
-
-/** A consulta do centro da cidade ("Natal, Rio Grande do Norte"). */
-export function consultaCidade(e: EnderecoPartido): string | null {
-  if (e.livre || !e.cidade) return null
-  return [e.cidade, nomeDoEstado(e.uf) ?? e.uf].filter(Boolean).join(', ')
-}
-
 /** As palavras que distinguem um lugar (sem as genéricas: residencial, conjunto…). */
 function palavrasDoLugar(t: string | null | undefined): string[] {
   return palavras(t).filter((p) => !GENERICAS_LUGAR.has(p))
@@ -620,77 +596,10 @@ export function escolherLugar(
 }
 
 // ---------------------------------------------------------------------------
-// Ler as respostas dos buscadores
-// ---------------------------------------------------------------------------
-
-type Props = Record<string, string | undefined>
-
-/** SESSAO-57: as camadas de LUGAR do Photon (o resto — casa, rua, ponto com nome — não é lugar). */
-function nivelPhoton(tipo: string | undefined): NivelDoLugar | null {
-  if (tipo === 'district' || tipo === 'locality') return 'bairro'
-  if (tipo === 'city' || tipo === 'county') return 'cidade'
-  return null
-}
-
-/** Os candidatos de uma resposta do Photon (GeoJSON). */
-export function candidatosPhoton(corpo: unknown): Candidato[] {
-  const features = (corpo as { features?: { geometry?: { coordinates?: number[] }; properties?: Props }[] })?.features ?? []
-  const lista: Candidato[] = []
-  for (const f of features) {
-    const [lon, lat] = f.geometry?.coordinates ?? []
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue
-    const p = f.properties ?? {}
-    if (p.countrycode && p.countrycode !== 'BR') continue
-    const tipo = p.type === 'house' ? 'house' : p.type === 'street' ? 'street' : 'outro'
-    const lugar = nivelPhoton(p.type)
-    lista.push({
-      lat,
-      lon,
-      tipo,
-      rua: p.street ?? (tipo === 'street' ? (p.name ?? null) : null),
-      nome: p.name ?? null,
-      numero: p.housenumber ?? null,
-      lugares: [p.district, p.locality, p.suburb, p.neighbourhood].filter((x): x is string => !!x),
-      cidades: [p.city, p.county, p.municipality, p.town, p.village].filter((x): x is string => !!x),
-      estado: p.state ?? null,
-      cep: p.postcode ?? null,
-      fonte: 'photon',
-      ...(lugar ? { lugar } : {}),
-    })
-  }
-  return lista
-}
-
-/** Os candidatos de uma resposta do Nominatim (jsonv2 com addressdetails). */
-export function candidatosNominatim(corpo: unknown): Candidato[] {
-  const lista: Candidato[] = []
-  for (const x of (Array.isArray(corpo) ? corpo : []) as { lat?: string; lon?: string; category?: string; addresstype?: string; name?: string; address?: Props }[]) {
-    const lat = Number(x.lat)
-    const lon = Number(x.lon)
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue
-    const a = x.address ?? {}
-    const tipo = a.house_number ? 'house' : x.category === 'highway' ? 'street' : 'outro'
-    lista.push({
-      lat,
-      lon,
-      tipo,
-      rua: a.road ?? (x.category === 'highway' ? (x.name ?? null) : null),
-      nome: x.name ?? null,
-      numero: a.house_number ?? null,
-      lugares: [a.suburb, a.neighbourhood, a.residential, a.quarter, a.city_district, a.hamlet].filter((v): v is string => !!v),
-      cidades: [a.city, a.town, a.village, a.municipality, a.county].filter((v): v is string => !!v),
-      estado: a.state ?? null,
-      cep: a.postcode ?? null,
-      fonte: 'nominatim',
-    })
-  }
-  return lista
-}
-
-// ---------------------------------------------------------------------------
 // A Geoapify (SESSAO-56 — a escolha do dono, 23/11/2026): o buscador principal.
 // Os buscadores gratuitos sem chave (Nominatim desde 03/10, Photon desde 19/11)
-// passaram a recusar o servidor; a Geoapify tem chave própria da Domoby e os
+// passaram a recusar o servidor — e saíram do código em 25/11 (pedido do dono:
+// "remover o lixo"); a Geoapify tem chave própria da Domoby e os
 // dados são os do mapa aberto — a pontuação acima vale igual. Aqui só as
 // consultas e a leitura da resposta (format=json); quem escolhe continua
 // sendo `escolher`/`escolherPerto` — nunca "o 1º resultado".

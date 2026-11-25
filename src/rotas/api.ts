@@ -1500,26 +1500,14 @@ export async function acharPontoDoEndereco(endereco: string): Promise<PontoAchad
 /**
  * SESSAO-57 (frente 2): o ponto do CEP para conferir o pino antes de salvar.
  * ↪️ Ajuste 24/11: pergunta PELO NAVEGADOR ao serviço de CEP (ele recusa o
- * servidor por limite de uso); sem resposta, a chamada leve à função
- * (`{ conferir: { cep } }`) como antes. Qualquer falha = null: não bloqueia nada.
+ * servidor por limite de uso). ↪️ 25/11 ("remover o lixo"): a reserva pela
+ * função saiu — lá o serviço só respondia "limite de uso". Qualquer falha =
+ * null: não bloqueia nada.
  */
 export async function pontoDoCepParaConferir(
   cep: string,
 ): Promise<{ latitude: number; longitude: number } | null> {
-  const pelaTela = pontoDaResposta(cep, await respostaDoCep(cep))
-  if (pelaTela) return pelaTela
-  try {
-    const { data, error } = await supabase.functions.invoke('geocodificar', {
-      body: { conferir: { cep } },
-    })
-    if (error) return null
-    const c = (data as { conferir?: { latitude?: unknown; longitude?: unknown } | null } | null)
-      ?.conferir
-    if (!c || typeof c.latitude !== 'number' || typeof c.longitude !== 'number') return null
-    return { latitude: c.latitude, longitude: c.longitude }
-  } catch {
-    return null
-  }
+  return pontoDaResposta(cep, await respostaDoCep(cep))
 }
 
 /** Uma chave nova por gesto (o toque repetido não dobra a parada). */
