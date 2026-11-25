@@ -1,15 +1,17 @@
 ---
 titulo: "SESSAO-53 — \"Entregue em parte\" também na Programação, na Expedição e nas Entregas do dia"
 tipo: demanda
-status: ⏳ pronta para subir (18/11/2026 — feita na mesa da fila; nada no banco de produção, nada na main)
+status: ✅ no ar em 25/11/2026 — banco e site ligados pela fila, na subida de 25/11
 data: 2026-11-18
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 origem: a dívida registrada na decisão provisória D-328, item 1, da SESSAO-51 (pedido gravado pelo Escritório em `_escritorio/handoffs/sessao-53-entregue-em-parte-nas-telas-prompt-claude-code.md`)
 revisa: ↪️ D-328 item 1 (paga a dívida) · usa D-325 (o pedido entregue em parte segue vivo), D-327 (a decisão e o revogar) · NÃO toca a D-324 (o selo do endereço alterado em "Já programadas")
 tags: [plataforma, demanda, rotas, entrega-parcial, programacao, expedicao, entregas-do-dia]
 ---
 
 # 🎯 SESSAO-53 — "Entregue em parte" também na Programação, na Expedição e nas Entregas do dia
+
+> ↪️ **25/11/2026 — ✅ NO AR.** As duas atualizações do banco (a das três telas, ~04:52, e a nova da aba Programar, ~04:55 — que guarda o aviso do ponto aproximado e acrescenta o selo) foram ligadas pela fila e o site subiu logo depois, pela subida de 25/11 ([[handoff_2026_11_25_subida_atualizada|handoff da subida de 25/11]]). **Falta ver o selo na tela:** em 25/11 não havia nenhum pedido aberto entregue em parte — ele aparece na primeira entrega parcial de verdade. *(O campo de status dizia, até 25/11: "⏳ pronta para subir (18/11/2026 — feita na mesa da fila; nada no banco de produção, nada na main)".)*
 
 > **Não linkada na [[000 - ORDEM DAS SESSOES]]** (regra desta leva: as notas grandes não são editadas pelas mesas da fila — entra depois da dieta da documentação).
 

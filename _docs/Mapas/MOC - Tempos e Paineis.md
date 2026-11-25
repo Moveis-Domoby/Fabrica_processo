@@ -2,7 +2,7 @@
 titulo: "Mapa — Tempos e Painéis"
 tipo: mapa
 area: tempos-paineis
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [mapa, moc, area/tempos-paineis]
 ---
 
@@ -18,8 +18,8 @@ tags: [mapa, moc, area/tempos-paineis]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
-- **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]]
-- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]]
+- **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]] — ✅ no ar (25/11)
+- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]] — ✅ no ar (25/11)
 - **47** · [[SESSAO-47 - Pedido Adiantado no Tiny Data Real da Entrega Comprovantes e Painel de Tempos]] · [[handoff_2026_11_09_sessao47_pedido_adiantado_entrega_comprovantes_tempos|handoff]]
 - **43** · [[SESSAO-43 - Tela Tempos de Producao Modo TV e Historico do Trello]] · [[handoff_2026_11_05_sessao43_tempos_producao_modo_tv|handoff]]
 - **42** · [[SESSAO-42 - Tempo Certo - Calendario Regras e Calculo Unico]] · [[handoff_2026_10_31_sessao42_tempo_certo|handoff]]

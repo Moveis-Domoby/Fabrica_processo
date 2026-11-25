@@ -7,6 +7,8 @@ tags: [handoff, sessao-53, rotas, entrega-parcial, programacao, expedicao, entre
 
 # 📋 Handoff — SESSAO-53 · "Entregue em parte" nas telas da logística (18/11/2026, madrugada — mesa da fila)
 
+> ↪️ **25/11/2026: NO AR** — banco e site ligados pela fila em 25/11 (~04:52 e ~04:55 o banco, ~05:00 o site), pela [[handoff_2026_11_25_subida_atualizada|subida de 25/11]]. A porta da aba Programar saiu da atualização desta sessão e foi numa atualização nova, que guarda o aviso do ponto aproximado. O selo ainda não foi visto na tela (nenhum pedido aberto entregue em parte em 25/11). O que este handoff diz abaixo ("não está no ar") é a história de 18/11.
+
 Demanda: [[SESSAO-53 - Entregue em Parte na Programacao Expedicao e Entregas do Dia]] · Diário: [[SESSAO-53]] · Paga a dívida da D-328, item 1 (SESSAO-51)
 
 > ⏳ **NÃO está no ar.** Tudo no ramo `sessao-53-entregue-em-parte-nas-telas` (worktree da fila). **Nada foi aplicado no banco, nada foi para a main, nada foi publicado.** A subida é do dono — a seção "Para ligar com o dono" diz o que fazer, em ordem.

@@ -1,14 +1,16 @@
 ---
 titulo: "SESSAO-55 — Telas que ainda abrem com mais de uma leitura (Meu Painel, painéis e configurações)"
 tipo: demanda
-status: ⏳ entregue no ramo `sessao-55-telas-numa-leitura` (18/11/2026 — mesa da fila, sem o dono na conversa); esperando o OK do dono para subir — nada no banco de produção, nada na main
+status: ✅ no ar em 25/11/2026 — banco e site ligados pela fila, na subida de 25/11
 data: 2026-11-18
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 origem: as dívidas 18 e 20 da [[PLT - Lei de Desempenho e Escala]] (§14). Pedido gravado pelo Escritório em `_escritorio/handoffs/sessao-55-telas-numa-leitura-prompt-claude-code.md`.
 tags: [plataforma, demanda, desempenho, dashboards, configuracoes, meu-painel]
 ---
 
 # 🎯 SESSAO-55 — Telas que ainda abrem com mais de uma leitura
+
+> ↪️ **25/11/2026 — ✅ NO AR.** As três atualizações do banco (as 9 portas de abertura, só leitura) foram ligadas pela fila em 25/11 ~04:54 e o site subiu logo depois, pela subida de 25/11 ([[handoff_2026_11_25_subida_atualizada|handoff da subida de 25/11]]). Ficou por fazer: medir os tempos reais das portas novas e olhar os avisos de desempenho do painel do banco (a publicação não tinha acesso a eles). *(O campo de status dizia, até 25/11: "⏳ entregue no ramo `sessao-55-telas-numa-leitura` (18/11/2026 — mesa da fila, sem o dono na conversa); esperando o OK do dono para subir — nada no banco de produção, nada na main".)*
 
 > Demanda gravada pela própria mesa a partir do pedido do Escritório (primeiro passo do pedido). **Não está linkada na Ordem das Sessões** (o pedido manda não linkar — a nota é de outra mesa nesta leva).
 

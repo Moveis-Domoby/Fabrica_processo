@@ -2,7 +2,7 @@
 titulo: "Mapa — Meu Painel, Chat e Automações"
 tipo: mapa
 area: painel-chat-automacoes
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [mapa, moc, area/painel-chat-automacoes]
 ---
 
@@ -16,7 +16,7 @@ tags: [mapa, moc, area/painel-chat-automacoes]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
-- **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]]
+- **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]] — ✅ no ar (25/11)
 - **46** · [[SESSAO-46 - Tech - Sugestao de Melhoria]] · [[handoff_2026_11_05_sessao46_tech_sugestoes|handoff]]
 - **31** · [[SESSAO-31 - Kanban Completo - Card Avulso Janela do Card Anexos e Conversa]] · [[handoff_2026_10_14_sessao31_kanban_completo|handoff]]
 - **27** · [[SESSAO-27 - Automacoes em Canvas]] · [[handoff_2026_10_02_sessao27_automacoes_canvas|handoff]]

@@ -7,6 +7,8 @@ tags: [handoff, sessao-57, rotas, mapa, geocodificacao]
 
 # 📋 Handoff — SESSAO-57 · O pino certo (24/11/2026, madrugada — fila do Escritório)
 
+> ↪️ **24/11/2026: NO AR** — a função de busca e o site foram publicados em 24/11 (esta sessão não tem atualização do banco); os ajustes de 24/11 e de 25/11 também (seção 10 em diante). A [[handoff_2026_11_25_subida_atualizada|subida de 25/11]] manteve tudo e acrescentou o selo "Entregue em parte" na aba Programar. *(linha posta em 25/11; o "nada está no ar" logo abaixo é a história da madrugada de 24/11.)*
+
 Demanda: [[SESSAO-57 - O Pino Certo]] · Diário: [[SESSAO-57]]
 
 > ⏳ **NADA ESTÁ NO AR.** Tudo está só no ramo `sessao-57-pino-certo` desta mesa (por cima do ramo da 56). Nenhuma atualização de banco (esta sessão não tem), a função `geocodificar` não foi publicada, o site não foi publicado.

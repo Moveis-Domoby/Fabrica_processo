@@ -2,7 +2,7 @@
 titulo: "Mapa — Expedição"
 tipo: mapa
 area: expedicao
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [mapa, moc, area/expedicao]
 ---
 
@@ -16,8 +16,8 @@ tags: [mapa, moc, area/expedicao]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
-- **53** · [[SESSAO-53 - Entregue em Parte na Programacao Expedicao e Entregas do Dia]] · [[handoff_2026_11_18_sessao53_entregue_em_parte_nas_telas|handoff]]
-- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]]
+- **53** · [[SESSAO-53 - Entregue em Parte na Programacao Expedicao e Entregas do Dia]] · [[handoff_2026_11_18_sessao53_entregue_em_parte_nas_telas|handoff]] — ✅ no ar (25/11)
+- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]] — ✅ no ar (25/11)
 - **48** · [[SESSAO-48 - Cancelar Fabricacao de Verdade - Peca de Pedido Pergunta o Destino]] · [[handoff_2026_11_11_cowork_sessao48_cancelamento_e_recargas|handoff 1]] · [[handoff_2026_11_11_sessao48_cancelar_fabricacao_recargas|handoff 2]]
 - **47** · [[SESSAO-47 - Pedido Adiantado no Tiny Data Real da Entrega Comprovantes e Painel de Tempos]] · [[handoff_2026_11_09_sessao47_pedido_adiantado_entrega_comprovantes_tempos|handoff]]
 - **45** · [[SESSAO-45 - Rotas no Mapa Certo Liberar Peca na Expedicao e PCP Honesto]] · [[handoff_2026_11_04_sessao45_rotas_expedicao_pcp|handoff]]

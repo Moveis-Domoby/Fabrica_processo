@@ -2,7 +2,7 @@
 titulo: "Mapa — Interface e Navegação"
 tipo: mapa
 area: interface
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [mapa, moc, area/interface]
 ---
 
@@ -18,8 +18,8 @@ tags: [mapa, moc, area/interface]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
-- **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]]
-- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]]
+- **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]] — ✅ no ar (25/11)
+- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]] — ✅ no ar (25/11)
 - **40** · [[SESSAO-40 - Lancar Qualquer Produto Filtro por Pedido e Busca Geral]] · [[handoff_2026_10_23_sessao40_lancar_filtro_busca|handoff]]
 - **13** · [[SESSAO-13 - Navegacao Perfil e Identidade]] · [[handoff_2026_08_28_sessao13_navegacao|handoff]]
 - **07** · [[SESSAO-07 - Tela do Setor Tablet]] · [[handoff_2026_08_28_sessao07_tela_setor|handoff]]

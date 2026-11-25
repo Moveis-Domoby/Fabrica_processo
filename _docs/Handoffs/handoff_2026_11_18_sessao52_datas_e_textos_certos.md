@@ -7,6 +7,8 @@ tags: [handoff, sessao-52, pedidos, busca, devolucao, auditoria, entregas]
 
 # 📋 Handoff — SESSAO-52 · Datas e textos certos (18/11/2026)
 
+> ↪️ **25/11/2026: NO AR** — banco e site ligados pela fila em 25/11 (~04:51 o banco, ~05:00 o site), pela [[handoff_2026_11_25_subida_atualizada|subida de 25/11]]. O que este handoff diz abaixo ("nada no ar", "para ligar com o dono") é a história de 18/11.
+
 Demanda: [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · Diário: `_docs/Plataforma/Execucao/SESSAO-52.md` · Ramo: `sessao-52-datas-e-textos-certos` (mesa da fila do Escritório — worktree própria)
 
 > ⏳ **Pronto no ramo, NADA no ar.** Nenhuma atualização foi aplicada no banco de produção, nada subiu para a `main`, nada foi publicado, o n8n não mudou e o ClickUp não foi tocado. Feito sem o dono na conversa: as escolhas de texto são decisões provisórias (seção 4).

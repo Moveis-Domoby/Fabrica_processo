@@ -7,6 +7,8 @@ tags: [handoff, sessao-56, rotas, mapa, geocodificacao, ordem-da-rota]
 
 # 📋 Handoff — SESSAO-56 · Busca de endereço pela Geoapify e ordem da rota que não se mexe sozinha (23/11/2026, noite — fila do Escritório)
 
+> ↪️ **24/11/2026: NO AR** — banco e função de busca em 24/11 (~00:40–00:58) e o site na main no mesmo dia; a [[handoff_2026_11_25_subida_atualizada|subida de 25/11]] conferiu em 25/11 que continuam no ar. *(linha posta em 25/11; o resto é a história de 23 e 24/11.)*
+
 Demanda: [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · Diário: [[SESSAO-56]]
 
 > ↪️ **AJUSTES DE 23/11 (~23:00 — as respostas do dono):** quem entra numa rota que já existe vai para o lugar mais perto (seção 2b), o aviso no sino com a busca fora há 1 hora (seção 2b), os 2 ajustes da revisão, e o registro do que o dono resolveu (a trava das rotas antigas já FEITA pelo Cowork — seção 4, passo 6). Duas atualizações de banco novas, só em arquivo, que entram logo depois da primeira (seção 4).

@@ -2,7 +2,7 @@
 titulo: "Mapa — Auditoria e Logs"
 tipo: mapa
 area: auditoria-logs
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [mapa, moc, area/auditoria-logs]
 ---
 
@@ -16,7 +16,7 @@ tags: [mapa, moc, area/auditoria-logs]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
-- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]]
+- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]] — ✅ no ar (25/11)
 - **48** · [[SESSAO-48 - Cancelar Fabricacao de Verdade - Peca de Pedido Pergunta o Destino]] · [[handoff_2026_11_11_cowork_sessao48_cancelamento_e_recargas|handoff 1]] · [[handoff_2026_11_11_sessao48_cancelar_fabricacao_recargas|handoff 2]]
 - **29** · [[SESSAO-29 - Reconciliacao Tiny - Pente-fino e Ultimo Pacote Vence]] · [[handoff_2026_10_01_sessao29_reconciliacao_tiny|handoff]]
 - **27** · [[SESSAO-27 - Automacoes em Canvas]] · [[handoff_2026_10_02_sessao27_automacoes_canvas|handoff]]

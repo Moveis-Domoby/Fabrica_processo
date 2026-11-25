@@ -1,15 +1,17 @@
 ---
 titulo: "SESSAO-52 — Datas e textos certos na busca, na devolução, na lista de pedidos e na Auditoria"
 tipo: demanda
-status: ⏳ pronta no ramo, esperando o dono (18/11/2026 — mesa da fila; nada no banco de produção, nada na main)
+status: ✅ no ar em 25/11/2026 — banco e site ligados pela fila, na subida de 25/11
 data: 2026-11-18
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 origem: achados fora do escopo registrados no handoff da SESSAO-47 (item 6 das pendências). Pedido gravado pela fila do Escritório em `_escritorio/handoffs/sessao-52-datas-e-textos-certos-prompt-claude-code.md`.
 revisa: ↩️ D-283 item 5 (a lista de pedidos mostrava a hora do fim do expediente quando o dia era escolhido) · ↩️ D-289 item 10 (o antes/depois da configuração do painel aparecia com os nomes internos) · ↪️ cumpre D-276 item 4 (a data escolhida vale em toda a plataforma), D-278 (o dia passado aparece sem hora), D-134 (a lista diz o dia e a hora em que foi dado como entregue), D-27/D-95 (nada de código na tela)
 tags: [plataforma, demanda, pedidos, busca, devolucao, auditoria, entregas]
 ---
 
 # 🎯 SESSAO-52 — Datas e textos certos na busca, na devolução, na lista de pedidos e na Auditoria
+
+> ↪️ **25/11/2026 — ✅ NO AR.** A atualização do banco foi ligada pela fila em 25/11 ~04:51 e o site subiu logo depois (~05:00), pela subida de 25/11 ([[handoff_2026_11_25_subida_atualizada|handoff da subida de 25/11]]). Conferido no banco: a porta nova da lista de pedidos existe e devolve os mesmos pedidos da lista antiga, com a hora do registro. Falta só o dono olhar as telas logado e confirmar as decisões provisórias. *(O campo de status dizia, até 25/11: "⏳ pronta no ramo, esperando o dono (18/11/2026 — mesa da fila; nada no banco de produção, nada na main)".)*
 
 > **Não linkada na Ordem das Sessões** (regra desta leva: as notas grandes do cofre estão com a SESSAO-49 — a dieta da documentação).
 

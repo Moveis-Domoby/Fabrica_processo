@@ -11,18 +11,19 @@ tags: [mapa, moc, sessoes, handoffs]
 
 ## Sessões (a mais nova primeiro)
 
-- **subida de 25/11** · a subida de 24/11 posta em dia com a main de 25/11 (a 57 e os ajustes); **substitui a de 24/11** · [[handoff_2026_11_25_subida_atualizada|handoff]] · [[SUBIDA-2026-11-25|diário]]
+- **cofre em dia (25/11)** · só documentação: o cofre passa a dizer o que está no ar depois da subida de 25/11 · [[handoff_2026_11_25_cofre_em_dia|handoff]] · [[COFRE-2026-11-25|diário]]
+- **subida de 25/11** · ✅ **ligada em 25/11 ~05:00** (banco e site: a 49 e as 52–55 no ar) · a subida de 24/11 posta em dia com a main de 25/11 (a 57 e os ajustes); **substitui a de 24/11** · [[handoff_2026_11_25_subida_atualizada|handoff]] · [[SUBIDA-2026-11-25|diário]]
 - **planejamento de 25/11** · o ponto do Google na busca de endereços (nada codado) · [[handoff_2026_11_25_planejamento_ponto_do_google|handoff]]
-- **57** · [[SESSAO-57 - O Pino Certo]] · [[handoff_2026_11_24_sessao57_pino_certo|handoff]] · [[SESSAO-57|diário]] — com os ajustes de 24/11 (a aba Programar avisa o ponto aproximado) e 25/11 (o CEP pelo navegador)
+- **57** · [[SESSAO-57 - O Pino Certo]] · [[handoff_2026_11_24_sessao57_pino_certo|handoff]] · [[SESSAO-57|diário]] — ✅ no ar (24/11) — com os ajustes de 24/11 (a aba Programar avisa o ponto aproximado) e 25/11 (o CEP pelo navegador)
 - **subida de 24/11** · ⛔ substituída pela de 25/11 (não subir) · juntou a 49 e as 52–56 num ramo só · [[handoff_2026_11_24_subida_juntar_entregas|handoff]]
-- **56** · [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · [[handoff_2026_11_23_sessao56_busca_geoapify_ordem_da_rota|handoff]] · [[SESSAO-56|diário]]
-- **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]] · [[SESSAO-55|diário]]
-- **54** · [[SESSAO-54 - Comercial - Janelas da Plataforma e Limpeza da Funcao Antiga]] · [[handoff_2026_11_18_sessao54_comercial_janelas_e_limpeza|handoff]] · [[SESSAO-54|diário]]
-- **53** · [[SESSAO-53 - Entregue em Parte na Programacao Expedicao e Entregas do Dia]] · [[handoff_2026_11_18_sessao53_entregue_em_parte_nas_telas|handoff]] · [[SESSAO-53|diário]]
-- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]] · [[SESSAO-52|diário]]
+- **56** · [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · [[handoff_2026_11_23_sessao56_busca_geoapify_ordem_da_rota|handoff]] · [[SESSAO-56|diário]] — ✅ no ar (24/11)
+- **55** · [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · [[handoff_2026_11_18_sessao55_telas_numa_leitura|handoff]] · [[SESSAO-55|diário]] — ✅ no ar (25/11)
+- **54** · [[SESSAO-54 - Comercial - Janelas da Plataforma e Limpeza da Funcao Antiga]] · [[handoff_2026_11_18_sessao54_comercial_janelas_e_limpeza|handoff]] · [[SESSAO-54|diário]] — ✅ no ar (25/11)
+- **53** · [[SESSAO-53 - Entregue em Parte na Programacao Expedicao e Entregas do Dia]] · [[handoff_2026_11_18_sessao53_entregue_em_parte_nas_telas|handoff]] · [[SESSAO-53|diário]] — ✅ no ar (25/11)
+- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]] · [[SESSAO-52|diário]] — ✅ no ar (25/11)
 - **51** · [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP]] · [[handoff_2026_11_17_sessao51_entrega_parcial_mover_pcp|handoff]] · [[SESSAO-51|diário]]
 - **50** · [[SESSAO-50 - Observacao do Item Cancelar e Ocultar no PCP e Editar Endereco da Parada]] · [[handoff_2026_11_12_sessao50_observacao_cancelar_ocultar_endereco|handoff]] · [[SESSAO-50|diário]]
-- **49** · [[SESSAO-49 - Dieta da Documentacao - Cofre no Padrao de Mapas do Obsidian]] · [[handoff_2026_11_18_sessao49_dieta_da_documentacao|handoff]] · [[SESSAO-49|diário]]
+- **49** · [[SESSAO-49 - Dieta da Documentacao - Cofre no Padrao de Mapas do Obsidian]] · [[handoff_2026_11_18_sessao49_dieta_da_documentacao|handoff]] · [[SESSAO-49|diário]] — ✅ no ar (25/11)
 - **48** · [[SESSAO-48 - Cancelar Fabricacao de Verdade - Peca de Pedido Pergunta o Destino]] · [[handoff_2026_11_11_cowork_sessao48_cancelamento_e_recargas|handoff 1]] · [[handoff_2026_11_11_sessao48_cancelar_fabricacao_recargas|handoff 2]] · [[SESSAO-48|diário]]
 - **47** · [[SESSAO-47 - Pedido Adiantado no Tiny Data Real da Entrega Comprovantes e Painel de Tempos]] · [[handoff_2026_11_09_sessao47_pedido_adiantado_entrega_comprovantes_tempos|handoff]] · [[SESSAO-47|diário]]
 - **46** · [[SESSAO-46 - Tech - Sugestao de Melhoria]] · [[handoff_2026_11_05_sessao46_tech_sugestoes|handoff]] · [[SESSAO-46|diário]]

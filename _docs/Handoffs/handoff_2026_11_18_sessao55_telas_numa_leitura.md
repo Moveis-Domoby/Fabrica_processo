@@ -7,6 +7,8 @@ tags: [handoff, sessao-55, desempenho, dashboards, configuracoes, meu-painel]
 
 # 📋 Handoff — SESSAO-55 · Telas que abrem com uma leitura (18/11/2026, madrugada — mesa da fila)
 
+> ↪️ **25/11/2026: NO AR** — as três atualizações do banco e o site ligados pela fila em 25/11 (~04:54 o banco, ~05:00 o site), pela [[handoff_2026_11_25_subida_atualizada|subida de 25/11]]. O que este handoff diz abaixo ("não está no ar") é a história de 18/11.
+
 Demanda: [[SESSAO-55 - Telas que Abrem com Uma Leitura Dashboards Configuracoes e Meu Painel]] · Diário: [[SESSAO-55]] · Ensaio: [[SESSAO-55 - ensaio x100 das portas de abertura (resultado, 2026-11-18).txt|resultado ×100]]
 
 > ⏳ **NÃO está no ar.** Tudo no ramo `sessao-55-telas-numa-leitura` (11 commits, com os 2 ajustes da revisão): **nada na main, nenhuma atualização aplicada no banco, nada publicado, nada no n8n, nada no ClickUp.** A sessão rodou sem o dono na conversa — as escolhas viraram decisões provisórias (seção 6). **A demanda não foi linkada na Ordem das Sessões e as notas grandes não foram editadas** (regra da leva): o que é delas está na seção 8.

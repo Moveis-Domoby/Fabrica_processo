@@ -1,7 +1,7 @@
 ---
 titulo: "SESSAO-49 — Dieta da documentação: o cofre no padrão de mapas do Obsidian, regras de leitura rápida e cada demanda lendo só o que precisa"
 tipo: demanda
-status: 📦 entregue na branch (18/11 — espera a revisão do dono para entrar na main)
+status: ✅ no ar em 25/11/2026, pela subida de 25/11
 data: 2026-11-11
 origem: pergunta do dono de 11/11 (03:20) — "o Claude Code está demorando muito para executar" — e o pedido de 03:25. Medições feitas no Cowork sobre a main de 11/11 (só leitura).
 revisa: a ordem de leitura do CLAUDE.md da raiz e a regra 6/10 ("ler tudo antes de codar"). Não revisa decisão de produto nenhuma.
@@ -9,6 +9,8 @@ tags: [cofre, documentacao, obsidian, processo, desempenho-da-sessao]
 ---
 
 # 🎯 SESSAO-49 — Dieta da documentação
+
+> ↪️ **25/11/2026 — ✅ NO AR**, pela subida de 25/11 ([[handoff_2026_11_25_subida_atualizada|handoff]]). *(Status até 25/11: "📦 entregue na branch (18/11 — espera a revisão do dono para entrar na main)".)*
 
 > **Rodar só depois que a SESSAO-48 estiver na main.** Ela escreve nas mesmas notas (decisões, memória, esquema). Comece a partir da main atualizada.
 > **Sessão só de documentação e de um script.** Nada de código da plataforma, banco ou publicação. Se a frente 5 da 48 (documentação não publica o site) ainda não estiver no ar, **cada subida para a main publica o site**: junte os commits e suba poucas vezes, fora do expediente.

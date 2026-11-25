@@ -2,7 +2,7 @@
 titulo: "Mapa — Comercial"
 tipo: mapa
 area: comercial
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [mapa, moc, area/comercial]
 ---
 
@@ -18,7 +18,7 @@ tags: [mapa, moc, area/comercial]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
-- **54** · [[SESSAO-54 - Comercial - Janelas da Plataforma e Limpeza da Funcao Antiga]] · [[handoff_2026_11_18_sessao54_comercial_janelas_e_limpeza|handoff]]
+- **54** · [[SESSAO-54 - Comercial - Janelas da Plataforma e Limpeza da Funcao Antiga]] · [[handoff_2026_11_18_sessao54_comercial_janelas_e_limpeza|handoff]] — ✅ no ar (25/11)
 - **32** · [[SESSAO-32 - Desempenho e Escala - Adequacao de Toda a Plataforma]] · [[handoff_2026_10_16_sessao32_desempenho_escala|handoff]]
 - **21** · [[SESSAO-21 - Uniao 3 - Cutover e Desligamento]] · [[handoff_2026_09_22_sessao21_cutover|handoff]]
 - **20** · [[SESSAO-20 - Uniao 2 - Modulo Comercial no Front]] · [[handoff_2026_09_16_sessao20_modulo_comercial|handoff]]

@@ -1,14 +1,16 @@
 ---
 titulo: "SESSAO-54 — Comercial: janelas da plataforma no lugar dos alertas do navegador, e a função antiga preparada para sair"
 tipo: demanda
-status: 🔨 feita no ramo `sessao-54-comercial-janelas-e-limpeza` (18/11/2026, madrugada) — nada na main, nada no banco; espera a revisão e o OK do dono
+status: ✅ no ar em 25/11/2026 — banco e site ligados pela fila, na subida de 25/11 (inclusive a remoção da função antiga, autorizada pelo dono)
 data: 2026-11-18
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 origem: o débito técnico do Comercial ([[PLT - Comercial - Debito Tecnico]]), conferido em 18/11 — itens DT-D24, DT-BD4 e DT-G16. Pedido gravado na fila do Escritório (`_escritorio/handoffs/sessao-54-comercial-janelas-e-limpeza-prompt-claude-code.md`).
 tags: [plataforma, demanda, comercial, debito-tecnico, modal, banco]
 ---
 
 # 🎯 SESSAO-54 — Comercial: janelas da plataforma e limpeza da função antiga
+
+> ↪️ **25/11/2026 — ✅ NO AR.** As janelas da plataforma no Comercial e a tabela de clientes ordenada pelo banco estão no ar desde 25/11 (~04:53 o banco, ~05:00 o site), pela subida de 25/11 ([[handoff_2026_11_25_subida_atualizada|handoff da subida de 25/11]]). **A função antiga das transições foi removida do banco na mesma publicação** — o dono respondeu "Pode apagar junto" em 25/11 03:30; antes, nada no banco dependia dela; depois, ela não existe e a do resumo segue. *(O campo de status dizia, até 25/11: "🔨 feita no ramo `sessao-54-comercial-janelas-e-limpeza` (18/11/2026, madrugada) — nada na main, nada no banco; espera a revisão e o OK do dono".)*
 
 > **Leva da fila de 18/11 (o dono dormindo):** trabalho sem perguntas de negócio; o que faltar vira decisão provisória registrada no diário ([[SESSAO-54]]) e no handoff. Esta demanda **não** está linkada na [[000 - ORDEM DAS SESSOES]] (regra da leva — a nota é das que não se editam nesta noite).
 

@@ -18,10 +18,10 @@ tags: [mapa, moc, area/logistica-rotas]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
-- **57** · [[SESSAO-57 - O Pino Certo]] · [[handoff_2026_11_24_sessao57_pino_certo|handoff]] (+ ajustes de 24 e 25/11) · [[handoff_2026_11_25_planejamento_ponto_do_google|plano do Google]]
-- **56** · [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · [[handoff_2026_11_23_sessao56_busca_geoapify_ordem_da_rota|handoff]]
-- **53** · [[SESSAO-53 - Entregue em Parte na Programacao Expedicao e Entregas do Dia]] · [[handoff_2026_11_18_sessao53_entregue_em_parte_nas_telas|handoff]]
-- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]]
+- **57** · [[SESSAO-57 - O Pino Certo]] · [[handoff_2026_11_24_sessao57_pino_certo|handoff]] (+ ajustes de 24 e 25/11) · [[handoff_2026_11_25_planejamento_ponto_do_google|plano do Google]] — ✅ no ar (24/11)
+- **56** · [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]] · [[handoff_2026_11_23_sessao56_busca_geoapify_ordem_da_rota|handoff]] — ✅ no ar (24/11)
+- **53** · [[SESSAO-53 - Entregue em Parte na Programacao Expedicao e Entregas do Dia]] · [[handoff_2026_11_18_sessao53_entregue_em_parte_nas_telas|handoff]] — ✅ no ar (25/11)
+- **52** · [[SESSAO-52 - Datas e Textos Certos na Busca Devolucao Pedidos e Auditoria]] · [[handoff_2026_11_18_sessao52_datas_e_textos_certos|handoff]] — ✅ no ar (25/11)
 - **51** · [[SESSAO-51 - Entrega Parcial Mantem a Producao e Mover Card para o PCP]] · [[handoff_2026_11_17_sessao51_entrega_parcial_mover_pcp|handoff]]
 - **50** · [[SESSAO-50 - Observacao do Item Cancelar e Ocultar no PCP e Editar Endereco da Parada]] · [[handoff_2026_11_12_sessao50_observacao_cancelar_ocultar_endereco|handoff]]
 - **47** · [[SESSAO-47 - Pedido Adiantado no Tiny Data Real da Entrega Comprovantes e Painel de Tempos]] · [[handoff_2026_11_09_sessao47_pedido_adiantado_entrega_comprovantes_tempos|handoff]]

@@ -1,15 +1,17 @@
 ---
 titulo: "SESSAO-56 — Busca de endereço pela Geoapify, tela que avisa quando a busca falha e ordem da rota que não se mexe sozinha"
 tipo: demanda
-status: em desenvolvimento
+status: ✅ no ar em 24/11/2026 — banco, função de busca e site
 data: 2026-11-23
-atualizado: 2026-11-23
+atualizado: 2026-11-25
 origem: relato da logística de 23/11 ("o mapa não está marcando os endereços") e pedido do dono das 21:12 sobre a ordem da rota; diagnóstico e escolhas feitos no Cowork com o dono em 23/11 (a Geoapify foi escolha do dono)
 revisa: ↩️ D-112 (buscador) e a parte do buscador da SESSAO-45 · ↩️ D-109 e D-111 (a sugestão só propõe; a ordem mostrada é a que vale)
 tags: [plataforma, demanda, rotas, mapa, geocodificacao, ordem-da-rota]
 ---
 
 # 🎯 SESSAO-56 — Busca de endereço pela Geoapify, tela que avisa quando a busca falha e ordem da rota que não se mexe sozinha
+
+> ↪️ **25/11/2026 — ✅ NO AR desde 24/11.** As três atualizações do banco e a função de busca de endereço foram ligadas em 24/11 (~00:40–00:58, com o OK do dono) e o site entrou na main no mesmo dia. A subida de 25/11 ([[handoff_2026_11_25_subida_atualizada|handoff da subida de 25/11]]) conferiu que continuam no ar e não mexeu nelas. Segue aberta a pergunta da faixa "a busca de endereço está fora" para todos. *(O campo de status dizia, até 25/11: "em desenvolvimento".)*
 
 > Mapeada no Cowork em 23/11/2026 com o dono, a partir de um relato da logística: "o mapa da programação de rotas não está marcando os endereços". **Confira se o número 56 está livre** (52–55 estão nos ramos da fila de 18/11).
 

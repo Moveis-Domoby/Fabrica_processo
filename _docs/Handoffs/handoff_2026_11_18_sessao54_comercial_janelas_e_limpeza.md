@@ -8,6 +8,8 @@ tags: [handoff, sessao-54, comercial, debito-tecnico, modal, banco]
 
 # 📋 Handoff — SESSAO-54 · Comercial: janelas da plataforma e limpeza da função antiga (18/11/2026, madrugada)
 
+> ↪️ **25/11/2026: NO AR** — banco e site ligados pela fila em 25/11 (~04:53 o banco, ~05:00 o site), pela [[handoff_2026_11_25_subida_atualizada|subida de 25/11]], **inclusive a remoção da função antiga das transições** (o dono respondeu "Pode apagar junto" em 25/11 03:30). O que este handoff diz abaixo ("só em arquivo", "esperando a revisão") é a história de 18/11.
+
 Demanda: [[SESSAO-54 - Comercial - Janelas da Plataforma e Limpeza da Funcao Antiga]] · Diário: [[SESSAO-54]] · Débito: [[PLT - Comercial - Debito Tecnico]] (DT-D24, DT-BD4, DT-G16, DT-D39)
 
 > 🔶 **Feito no ramo `sessao-54-comercial-janelas-e-limpeza`, esperando a revisão do dono.** Nada na main, nada publicado, **nada aplicado no banco** — as duas atualizações do banco estão só em arquivo. Sessão da fila, sem o dono na conversa: o que precisou de escolha virou **decisão provisória** (§3). O ClickUp não foi tocado.

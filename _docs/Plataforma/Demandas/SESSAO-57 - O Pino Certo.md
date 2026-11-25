@@ -1,13 +1,15 @@
 ---
 titulo: "SESSAO-57 — O pino certo: a busca digitada não finge que achou, e o pino salvo à mão é conferido"
 tipo: demanda
-status: entregue
+status: ✅ no ar em 24/11/2026 — função de busca e site (sem atualização do banco)
 data: 2026-11-24
-atualizado: 2026-11-24
+atualizado: 2026-11-25
 tags: [plataforma, demanda, sessao-57, rotas, mapa, geocodificacao]
 ---
 
 # 🎯 SESSAO-57 — O pino certo
+
+> ↪️ **25/11/2026 — ✅ NO AR desde 24/11** (função de busca e site; esta sessão não tem atualização do banco). Os ajustes de 24/11 (a aba Programar avisa o ponto aproximado) e de 25/11 (o CEP pelo navegador) também estão no ar; a subida de 25/11 ([[handoff_2026_11_25_subida_atualizada|handoff da subida de 25/11]]) manteve os dois e acrescentou o selo "Entregue em parte" na mesma aba. *(O campo de status dizia, até 25/11: "entregue".)*
 
 > Pedido do dono em 24/11, 01:07 ("sim, coloque"), depois de achar estranho o pino do pedido 13961 mesmo usando "Achar no mapa". Diagnóstico do Cowork pelo banco vivo e por bases públicas de CEP (só leitura). Executada pela fila do Escritório, por cima da [[SESSAO-56 - Busca de Endereco pela Geoapify e Tela que Avisa]].
 

@@ -8,6 +8,8 @@ tags: [handoff, sessao, cofre, documentacao]
 
 # 📋 Handoff — 18/11/2026 — a dieta da documentação
 
+> ↪️ **25/11/2026: NO AR** — a dieta entrou na main em 25/11 (~05:00), pela [[handoff_2026_11_25_subida_atualizada|subida de 25/11]]. O que este handoff diz abaixo ("entregue na branch", "espera a revisão") é a história de 18/11.
+
 **Demanda:** [[SESSAO-49 - Dieta da Documentacao - Cofre no Padrao de Mapas do Obsidian]] · **Diário técnico:** [[SESSAO-49]]
 **Estado:** entregue **na branch** `sessao-49-dieta-da-documentacao` (nada foi enviado, nada foi publicado, o banco não foi tocado). Espera a revisão do dono para entrar na main.
 

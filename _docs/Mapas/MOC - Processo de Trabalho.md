@@ -2,7 +2,7 @@
 titulo: "Mapa — Processo de Trabalho"
 tipo: mapa
 area: processo
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [mapa, moc, area/processo]
 ---
 
@@ -18,7 +18,7 @@ tags: [mapa, moc, area/processo]
 
 ## Últimas sessões da área (a mais nova primeiro)
 
-- **49** · [[SESSAO-49 - Dieta da Documentacao - Cofre no Padrao de Mapas do Obsidian]] · [[handoff_2026_11_18_sessao49_dieta_da_documentacao|handoff]]
+- **49** · [[SESSAO-49 - Dieta da Documentacao - Cofre no Padrao de Mapas do Obsidian]] · [[handoff_2026_11_18_sessao49_dieta_da_documentacao|handoff]] — ✅ no ar (25/11)
 
 <!-- gerado:inicio -->
 ## Decisões vigentes (8)
