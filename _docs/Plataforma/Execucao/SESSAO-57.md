@@ -100,3 +100,22 @@ Pedido do dono: *"realize testes no navegador para validar se os endereços est�
 - **APLICADA em 24/11 com o OK do dono ("Sim, aplique")** — `npm run banco:aplicar -- --confirmar --so 20261124130000_plt_candidatos_ponto_aproximado.sql`: aplicada, integração do Tiny idêntica (estrutura e linhas). Nada mais reaplicado.
 - **Conferência no banco vivo** (porta chamada como um admin, transação desfeita): os sem programação no centro da cidade agora vêm com `geo_aproximado = 'cidade'` — 13952, 13969, 13977, 13979 e três novos do dia (13988, 13993, 13995); os marcados à mão vêm com `geo_manual = true` (13918, 13962); o CEP vem em todos. Dos 8 da validação, a logística já acertou à mão às ~08:20 de 24/11 o 13957 (~0,05 km do CEP), o 13964 (~0,02 km) e o 13971 (~0,22 km) e programou os três para 24/11; o **13975** foi programado para 25/11 **ainda no centro de Parnamirim** (em "Já programadas" ele aparece com o aviso e na conta de "pino a conferir").
 - **Não vi a tela no site:** o navegador do app caiu no login e o Chrome do dono estava desconectado (senha não se digita). O site não mudou: o cartão é o mesmo que já mostra o aviso em "Já programadas" e o teste de tela do cartão com `geo_aproximado` está verde.
+
+## Os pinos acertados (24/11, pedido do dono: "Arrume o pino … ENTÃO ARRUMA")
+
+Gravados pela mesma porta da tela (`plt_fn_geo_marcar`, como o usuário do dono — o registro de atividade guarda o ponto de antes de cada um). Ponto escolhido daqui do PC, por bases abertas (OpenStreetMap pelo Nominatim/Photon/Overpass, ViaCEP para o CEP oficial da rua e o serviço de CEP para o ponto do CEP). As ruas têm 300–600 m e os números passam disso (1035, 1570): a numeração não é métrica — o pino vai **sobre a rua certa, no ponto mais perto do CEP** (a navegação do entregador é sempre pelo endereço; o pino só ordena a rota).
+
+| Pedido | Endereço | Ponto gravado | Como |
+|---|---|---|---|
+| 13975 (sai 25/11) | R. Francisco Altevi Wanderley 538, Passagem de Areia, Parnamirim | -5.913877, -35.280165 | ponta da rua (510 m no mapa) mais perto do CEP |
+| 13969 | R. Manoel Bandeira de Moura 224, Encanto Verde, Parnamirim | -5.8662932, -35.2582866 | ponto do CEP da rua (a rua não está no mapa; o bairro fica a 140 m) |
+| 13979 | R. Santo Apolo 587, Dix-Sept Rosado, Natal | -5.813043, -35.226311 | sobre a rua, no CEP |
+| 13988 | R. Ten. Petronilo Diogo Silva 422, Bom Pastor, Natal | -5.8135697, -35.2439482 | sobre a rua, no CEP |
+| 13993 | R. Tamirim 395, Planalto, Natal | -5.854155, -35.265337 | sobre a rua, a 85 m do CEP |
+| 13995 | R. da Saudade 1035, Lagoa Nova, Natal | -5.821268, -35.204550 | sobre a rua, no CEP |
+| 13952 | Área rural de Macaíba — complemento "condomínio Fazenda Real 1 e 2" | -5.866902, -35.454536 | o condomínio no mapa (~11 km a oeste do ponto antigo) |
+| 13977 | R. São Miguel 278, "São Miguel Arcanjo", Extremoz (CEP geral) | -5.695285, -35.301748 | **palpite**: há duas R. São Miguel em Extremoz; a de Canaã fica a 1,4 km da igreja de São Miguel Arcanjo (a outra, em Redinha Nova, a ~9 km) — confirmar com o cliente |
+
+- **13840 não foi mexido — o pino está certo.** Correção do que escrevi antes: pelo ViaCEP (Correios), o CEP 59014-430 **é** da Rua José de Souza Cruz, Mãe Luiza; o serviço de CEP e o mapa ainda chamam a mesma rua pelo nome antigo, "Rua São José" (o ponto do CEP fica a 4 m dela). O pino salvo à mão está sobre a rua.
+- Sobraram com ponto da cidade só 13894 e 13910, de rotas de 14 e 16/11 (já passadas).
+- L8 — O serviço de CEP pode trazer o nome **antigo** da rua: "o CEP é de outra rua" precisa ser conferido no ViaCEP (o nome dos Correios) antes de dizer que o endereço está errado.
