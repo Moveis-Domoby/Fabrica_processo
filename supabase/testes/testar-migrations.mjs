@@ -25677,7 +25677,9 @@ for (const m of ['20261118110000_plt_entregue_em_parte_nas_telas.sql', '20261109
                  '20261109050000_plt_calendario_sem_prefiltro.sql', '20261112020000_plt_pcp_cancelar_ocultar_excluido.sql',
                  '20261112060000_plt_editar_endereco.sql', '20261116010000_plt_sessao51_base.sql',
                  '20261116020000_plt_entrega_parcial_mantem_producao.sql', '20261116030000_plt_mover_card_para_pcp.sql',
-                 '20261118110000_plt_entregue_em_parte_nas_telas.sql']) {
+                 '20261118110000_plt_entregue_em_parte_nas_telas.sql',
+                 // subida 25/11: a porta de Programar saiu da 53 e mora na nova (a versão do ponto aproximado de 24/11 + o selo)
+                 '20261124130000_plt_candidatos_ponto_aproximado.sql', '20261125100000_plt_candidatos_entregue_em_parte.sql']) {
   await bd.exec(await readFile(path.join(MIGRATIONS, m), 'utf8'))
 }
 conferir(true, 'a migration antiga de "Já programadas" reaplica depois da nova, e a nova volta por cima, sem erro')
@@ -25813,6 +25815,16 @@ conferir(true, 'a migration antiga de "Já programadas" reaplica depois da nova,
   const c1 = await noProgramar(99531)
   conferir(c1?.entregue_em_parte?.entregues === 2 && c1.entregue_em_parte.total === 5 && c1.entregue_em_parte.ainda_producao === 3 && !!c1.entregue_em_parte.em,
            'Programar: o pedido voltou para a lista com 2 de 5 e 3 ainda em produção', JSON.stringify(c1?.entregue_em_parte))
+  // subida 25/11: o selo E o ponto aproximado de 24/11 juntos, na mesma porta de Programar
+  conferir(!!c1?.geo_chave, 'Programar: o pedido entregue em parte tem endereço para o ponto do mapa', JSON.stringify(c1?.geo_chave))
+  await bd.exec(`insert into public.plt_geocache (chave, endereco, latitude, longitude, resolvido, fonte)
+                   values ('${c1.geo_chave}', 'teste 53', -5.805398, -35.2080905, true, 'aprox_cidade')
+                 on conflict (chave) do update set fonte = excluded.fonte, latitude = excluded.latitude, longitude = excluded.longitude, resolvido = true`)
+  const c1b = await noProgramar(99531)
+  conferir(c1b?.entregue_em_parte?.entregues === 2 && c1b.entregue_em_parte.ainda_producao === 3
+             && c1b.geo_aproximado === 'cidade' && c1b.geo_manual === false && 'cep' in c1b && !!c1b.cep,
+           'Programar: o MESMO cartão diz "Entregue em parte (2 de 5)" E "ponto aproximado · Ajustar o pino", com o CEP junto (o ajuste de 24/11 não se perde)',
+           JSON.stringify({ ep: c1b?.entregue_em_parte, a: c1b?.geo_aproximado, m: c1b?.geo_manual, cep: c1b?.cep }))
   const c2 = await naExpedicao(99531)
   conferir(c2?.entregue_em_parte?.entregues === 2 && c2.entregue_em_parte.total === 5 && c2.entregue_em_parte.ainda_producao === 3,
            'Expedição: o mesmo 2 de 5 e 3 ainda em produção', JSON.stringify(c2?.entregue_em_parte))
@@ -27332,6 +27344,44 @@ try {
   await bd.exec('rollback')
 }
 } // fim do bloco Ajuste 24/11
+
+
+// ============================================================================
+// Subida de 25/11 (migration 20261125100000): a porta de Programar com o ponto
+// aproximado de 24/11 E o selo "Entregue em parte" da SESSAO-53. A 53 deixou de
+// recriar esta porta (em produção a de 24/11 já está no ar; aplicar a 53 depois
+// apagaria o aviso do ponto). A nova é a versão de 24/11 + só o selo.
+// ============================================================================
+{ // escopo próprio (E-70)
+titulo('Subida 25/11 · Programar: a versão de 24/11 + o selo, e a 53 não toca mais nesta porta')
+const corpo = (txt) => {
+  const i = txt.indexOf('create or replace function public.plt_fn_programacao_candidatos(')
+  const j = txt.indexOf('$function$;', i)
+  return i < 0 || j < 0 ? null : txt.slice(i, j)
+}
+const lerM = (m) => readFile(path.join(MIGRATIONS, m), 'utf8')
+const m53 = await lerM('20261118110000_plt_entregue_em_parte_nas_telas.sql')
+const m24 = await lerM('20261124130000_plt_candidatos_ponto_aproximado.sql')
+const m25 = await lerM('20261125100000_plt_candidatos_entregue_em_parte.sql')
+conferir(corpo(m53) === null, 'a atualização da 53 não recria mais a porta de Programar')
+// a nova, sem as linhas do selo, é IGUAL à de 24/11 (a conferência que se repete no banco vivo antes de aplicar)
+const semSelo = corpo(m25)
+  .split('\n')
+  .filter((l) => !/SESSAO-53|fábrica \(a chave só nasce|ep\.card_id is null|'entregue_em_parte', ep\.selo|vw_entregue_em_parte ep/.test(l))
+  .join('\n')
+conferir(semSelo === corpo(m24), 'a nova é a de 24/11 + só o selo (nenhuma outra linha muda)',
+         JSON.stringify({ nova: semSelo?.length, de24: corpo(m24)?.length }))
+await bd.exec(m25)
+const vivo = (await bd.query(`select p.prosrc, pg_get_function_identity_arguments(p.oid) as args,
+                                     has_function_privilege('anon', p.oid, 'execute') as anon,
+                                     has_function_privilege('authenticated', p.oid, 'execute') as logado
+                                from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                               where n.nspname = 'public' and p.proname = 'plt_fn_programacao_candidatos'`)).rows
+conferir(vivo.length === 1 && /'geo_aproximado'/.test(vivo[0].prosrc) && /'cep', pg\.cep/.test(vivo[0].prosrc)
+           && /'entregue_em_parte', ep\.selo/.test(vivo[0].prosrc) && !vivo[0].anon && vivo[0].logado,
+         'depois de tudo, a porta tem o ponto aproximado, o CEP e o selo — uma assinatura só, só para quem tem login',
+         JSON.stringify(vivo.map((v) => ({ args: v.args, anon: v.anon, logado: v.logado }))))
+} // fim do bloco Subida 25/11
 
 
 const contar = async (sql) => (await bd.query(sql)).rows[0].total
