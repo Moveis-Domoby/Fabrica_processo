@@ -2,7 +2,7 @@
 titulo: "Memória de aprendizado — Git Shell e Windows (parte 2 de 2)"
 tipo: memoria-tema
 tema: git-shell
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [memoria, aprendizado, tema/git-shell]
 ---
 
@@ -65,3 +65,7 @@ tags: [memoria, aprendizado, tema/git-shell]
 ### E-329
 
 - [2026-11-25] **E-329** (Claude Code, subida de 25/11) · **Sexta reincidência do `cd`** ([[Memoria - Git Shell e Windows 1#E-74|E-74]]): um `cd` para a pasta temporária no meio de um comando de contagem. O app voltou a pasta da sessão (nada mexido), mas a regra é desde o 1º comando. *Correção:* variável com o caminho absoluto, sempre.
+
+### E-331
+
+- [2026-11-25] **E-331** (Claude Code, cofre em dia de 25/11) · **Roteiro longo passado ao Git Bash por "heredoc" quebrou** ("unexpected EOF"): o texto tinha crases, aspas e cifrão dentro de modelos de texto, e a ferramenta não entregou o bloco inteiro ao shell. *Correção:* gravar o roteiro com a ferramenta de arquivo, na pasta temporária, e chamar `node <caminho absoluto>` — primo do [[Memoria - Git Shell e Windows 1#E-9|E-9]].

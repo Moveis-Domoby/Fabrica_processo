@@ -2,7 +2,7 @@
 titulo: "Memória de aprendizado — Banco e SQL (parte 2 de 2)"
 tipo: memoria-tema
 tema: banco-sql
-atualizado: 2026-11-18
+atualizado: 2026-11-25
 tags: [memoria, aprendizado, tema/banco-sql]
 ---
 
@@ -141,3 +141,7 @@ tags: [memoria, aprendizado, tema/banco-sql]
 ### A-261
 
 - [2026-11-23] **A-261** (Claude Code, SESSAO-56) · **Estado pequeno de serviço numa linha reservada de tabela que já existe** (banco enxuto) — e ele viaja na resposta da própria chamada, sem leitura nova.
+
+### A-267
+
+- [2026-11-25] **A-267** (Claude Code, cofre em dia de 25/11) · **O arquivo do esquema é carregado pela bateria do banco — o que é da plataforma entra nele só em comentário.** Ele é o retrato da integração que os testes rodam antes das migrations; pôr ali o corpo de uma função da plataforma faria a bateria criá-la antes da hora. *Forma:* uma seção numerada por subida, com cada atualização **na ordem em que foi aplicada em produção** (a ordem sai do relatório da publicação, não do nome do arquivo — ver [[Memoria - Migrations Aplicador e Ensaio 2#E-328|E-328]]) e a assinatura do que foi criado, recriado ou removido; o corpo mora na migration.
