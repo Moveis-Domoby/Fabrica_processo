@@ -116,3 +116,10 @@ Detalhe no diário [[SESSAO-57]] (seção "Validação dos endereços um por um"
 | Aba Programar | ❌ 8 pedidos no centro da cidade sem o aviso de "ajustar o pino" (a lista não manda o campo do aviso) — 13964, 13971, 13969, 13957, 13979, 13975, 13977, 13952 |
 
 Nada foi corrigido nem alterado (ficaram só 34 linhas de registro da busca digitada no cache). Decisões com o dono: o aviso na aba Programar, outro caminho para o ponto do CEP, e acertar os 8 pinos.
+
+### 10.1 Ajuste aplicado em 24/11 — a aba Programar avisa o ponto aproximado
+
+- A lista "Sem programação" passou a trazer o ponto aproximado, o ponto marcado à mão e o CEP (migration `20261124130000_plt_candidatos_ponto_aproximado.sql`, **aplicada com o OK do dono**; teste novo na bateria do banco, verde).
+- **Como testar:** Rotas → Programação → aba Programar → os pedidos 13952, 13969, 13977, 13979, 13988, 13993 e 13995 mostram o aviso âmbar "ponto aproximado · Ajustar o pino".
+- **Pendente:** o 13975 está programado para 25/11 com o pino no centro de Parnamirim — acertar antes de sair; confirmar o endereço do 13840 com o cliente; o serviço de CEP segue recusando o servidor (decidir outro caminho).
+- **Armadilha:** a frente que mostra "entregue em parte" nas telas recria esta mesma lista a partir da versão antiga — ao entrar, precisa levar as três informações junto.
