@@ -137,3 +137,9 @@ Gravados pela mesma porta da tela (`plt_fn_geo_marcar`, como o usuário do dono 
 - **Regras (Termos Específicos do Serviço, lidos pelo navegador em 25/11):** 6.2 *"Customer must not use Google Maps Content from the Geocoding API in conjunction with a non-Google map"* — o nosso mapa é o aberto (Leaflet): usar o ponto do Google nele é proibido. 6.3.1: guardar latitude/longitude só por até 30 dias corridos. 6.3.2: guardar para sempre só por usuário, sem reaproveitar entre usuários — o nosso cache é compartilhado. O place_id pode ser guardado sem prazo.
 - **Consequência:** adotar o Google exige trocar o mapa das Rotas pelo do Google e refazer a busca a cada 30 dias (ou guardar só o place_id). Não se encaixa como "só trocar o buscador".
 - **O caminho que fica de pé sem regra de terceiro:** o ponto real gravado na entrega (o celular do entregador na porta) e o pino conferido pela logística — dados nossos, guardados para sempre.
+
+## Planejamento do ponto do Google (25/11, pedido do dono: "escreva um handoff do planejamento para aplicar o ponto do google, irei ver de trocar o mapa depois")
+
+- Handoff de planejamento: [[handoff_2026_11_25_planejamento_ponto_do_google]] — Google como 1º degrau da busca, desligado por interruptor até a troca do mapa; place_id sem prazo + ponto do Google válido só 30 dias (leitura das telas esconde o vencido, a função refaz pelo place_id, limpeza por decisão do dono); critérios de aceite e 7 decisões para o dono.
+- Preços conferidos de novo (tabela oficial, 25/11): busca 10 mil grátis/mês e US$ 5/mil; mapa (Dynamic Maps) 10 mil aberturas grátis e US$ 7/mil; rota (Compute Routes Essentials) 10 mil grátis e US$ 5/mil.
+- ⚠️ Não confirmado: se as regras gerais proíbem calcular a rota no serviço aberto com o ponto do Google (a página dos termos gerais não abriu pela leitura automática). Ler no navegador antes de codar.
